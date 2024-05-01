@@ -1,4 +1,4 @@
-import { ArticleLayout } from '~/components/ArticleLayout'
+import { ArticleLayout } from '~/components/Articles'
 
 export const meta = {
   title: 'How I Made My Own Static-Site Generator',
@@ -172,7 +172,7 @@ Rx.Observable.from(glob)
         file: file.replace(new RegExp(`^${contentDir}(.*).md$`), '$1'),
         content,
         date: new Date(data.date).getTime(),
-      }))
+      })),
   )
   .subscribe(console.log)
 ```
@@ -211,7 +211,7 @@ Rx.Observable.from(glob)
         file: file.replace(new RegExp(`^${contentDir}(.*).md$`), '$1'),
         content: marked(content),
         date: new Date(data.date).getTime(),
-      }))
+      })),
   )
   .subscribe(console.log)
 ```
@@ -284,7 +284,7 @@ Rx.Observable.from(glob)
         file: file.replace(new RegExp(`^${contentDir}(.*).md$`), '$1'),
         content: marked(content),
         date: new Date(data.date).getTime(),
-      }))
+      })),
   )
   .flatMap(write)
   .subscribe(console.log)
@@ -314,7 +314,7 @@ const file$ = Rx.Observable.from(glob)
         file: file.replace(new RegExp(`^${contentDir}(.*).md$`), '$1'),
         content: marked(content),
         date: new Date(data.date).getTime(),
-      }))
+      })),
   )
 
 const index$ = file$
@@ -346,8 +346,7 @@ renderer.code = function renderCode(code, lang) {
   const c = this.options.highlight(code, lang)
   if (!lang) return `<pre><code>${c}</code></pre>`
   if (!has(lang, prism.languages)) {
-    const component =
-      `node_modules/prismjs/components/prism-${lang}.min.js`.split('/')
+    const component = `node_modules/prismjs/components/prism-${lang}.min.js`.split('/')
     if (fs.statSync(path.join(__dirname, ...component))) {
       require(component)
     } else return `<pre><code>${c}</code></pre>`

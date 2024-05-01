@@ -1,10 +1,11 @@
-import { ArticleLayout } from '~/components/ArticleLayout'
+import { ArticleLayout } from '~/components/Articles'
 
 export const meta = {
   title: 'Learning Vim',
   category: 'computers',
   tags: ['vim', 'unfinished'],
   date: '2017-02-02',
+  description: 'getting started with vim',
 }
 
 export default props => <ArticleLayout meta={meta} {...props} />
@@ -31,8 +32,7 @@ I think the best thing to learn first in Vim is how to move the cursor. There ar
 
 <center>
   [![http://www.catonmat.net/blog/why-vim-uses-hjkl-as-arrow-keys/](http://www.catonmat.net/images/why-vim-uses-hjkl/adm-3a-hjkl-keyboard.jpg
-  "from the
-  ADM-3A")](http://www.catonmat.net/blog/why-vim-uses-hjkl-as-arrow-keys/)
+  "from the ADM-3A")](http://www.catonmat.net/blog/why-vim-uses-hjkl-as-arrow-keys/)
 </center>
 
 `h` `j` `k` `l` move the cursor left, down, up, and right, respectively. `h` and `l` are easy to remember because they are at the left and right, but `j` and `k` can be easy to mix up at first, so it's helpful to note that `j` kinda almost resembles a down arrow with the way the it exceeds the baseline. We can prepend a `[count]` to any of these, so if we want to move forward by 10 chars we can use `10l` or if we want to go up 3 lines we can use `3k`.

@@ -1,4 +1,5 @@
-import { ArticleLayout } from '~/components/ArticleLayout'
+import { ArticleLayout } from '~/components/Articles'
+import { EditorWithConsole } from '~/components/Editors'
 
 export const meta = {
   title: 'Functional Programming: functional composition',
@@ -17,7 +18,7 @@ Creating functions like Lego blocks
 Imagine you have some series of computations to perform:
 
 ```javascript
-const yell = str => {
+function yell(str) {
   const upper = str.toUpperCase()
   const exclaim = `${upper}!`
   return exclaim
@@ -120,22 +121,22 @@ f(g(x)) === compose(f, g)(x) === pipe(g, f)(x)
 
 The benefits of these really shine with _variadic_ implementations, so you can pass as many functions to be composed or piped as you like:
 
-```javascript
-id = a => a
-_compose = (f, g) => x => f(g(x))
-compose = (...fs) => fs.reduce(_compose, id)
-pipe = (...fs) => fs.reduceRight(_compose, id)
-
+<EditorWithConsole
+  file={`
+const id = a => a
+const _compose = (f, g) => x => f(g(x))
+const compose = (...fs) => fs.reduce(_compose, id)
+const pipe = (...fs) => fs.reduceRight(_compose, id)
 const objOf = curry((k, o) => ({ [k]: o }))
 const tap = curry((f, v) => {
   f(v)
   return v
 })
 const log = tap(console.log)
-
 const myfn = pipe(upper, log, exclaim, log, objOf('yell'), log)
-myfn('hello world')
-```
+console.log(myfn('hello world'))
+`}
+/>
 
 ---
 

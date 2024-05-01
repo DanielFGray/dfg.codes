@@ -1,4 +1,5 @@
 import { Head, Html, Main, NextScript } from 'next/document'
+import { getSandpackCssText } from '@codesandbox/sandpack-react'
 
 const modeScript = `
   let darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
@@ -40,6 +41,11 @@ export default function Document() {
     <Html className="h-full antialiased" lang="en">
       <Head>
         <script dangerouslySetInnerHTML={{ __html: modeScript }} />
+        <style
+          dangerouslySetInnerHTML={{ __html: getSandpackCssText() }}
+          id="sandpack"
+          key="sandpack-css"
+        />
         <link
           rel="alternate"
           type="application/rss+xml"

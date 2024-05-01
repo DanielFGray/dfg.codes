@@ -1,11 +1,12 @@
-import { ArticleLayout } from '~/components/ArticleLayout'
+import { Callout } from '~/components/Prose'
+import { ArticleLayout } from '~/components/Articles'
 
 export const meta = {
   title: "Vim beginner's customization guide",
   category: 'computers',
   tags: ['vim'],
   date: '2015-08-02',
-  description: "This article is for those who've been using Vim for a little while and have started to grasp modal editing and the powers of Vim, and now want to start customizing it. If you're completely new to Vim, I have another post describing some of the basic of learning Vim [here](/computers/vim-guide) but there are dozens of them on the internet, and Vim ships with `vimtutor` as well which is a great place to start.",
+  description: "I'm going to try to walk you through the process of creating your own configuration, by giving you my biased opinions in attempt to save you from some of the boring bits of testing things out (which admittedly can also be a rewarding process).",
 }
 export default props => <ArticleLayout meta={meta} {...props} />
 
@@ -29,17 +30,15 @@ Then, let's install a plugin manager called [vim-plug](https://github.com/junegu
 curl -fLo ~/.vim/autoload/plug.vim https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
 ```
 
-<small>
-  _(Aside: There are definitely many choices of plugin managers, but to me,
-  vim-plug is the best of them; the syntax is very clean and it does parallel
-  processing which makes updates so much faster than others. The other biggest
-  contender would be [NeoBundle](https://github.com/Shougo/neobundle.vim) which
-  offers more fine-grained control, but I find the extra control is rarely
-  needed, and vim-plug will do just about all of that anyway and with cleaner
-  syntax. There's also [Vundle](https://github.com/gmarik/Vundle.vim) but it
-  doesn't have delayed loading of plugins which is a really great feature not to
-  be missed out on.)_
-</small>
+<Callout>
+  (Aside: There are definitely many choices of plugin managers, but to me, vim-plug is the best of
+  them; the syntax is very clean and it does parallel processing which makes updates so much faster
+  than others. The other biggest contender would be
+  [NeoBundle](https://github.com/Shougo/neobundle.vim) which offers more fine-grained control, but I
+  find the extra control is rarely needed, and vim-plug will do just about all of that anyway and
+  with cleaner syntax. There's also [Vundle](https://github.com/gmarik/Vundle.vim) but it doesn't
+  have delayed loading of plugins which is a really great feature not to be missed out on.)
+</Callout>
 
 Now, open your `~/.vimrc` with Vim, and let's use Vim-plug to install a minimal, [sensible](https://github.com/tpope/vim-sensible), set of default options by adding the following lines:
 
@@ -315,11 +314,9 @@ nnoremap n nzvzt
 nnoremap N Nzvzt
 ```
 
-<small>
-  _note that if you're using the
-  [incsearch](https://github.com/haya14busa/incsearch) plugin to handle all of
-  your searching you'll have to add the `zvzt` to the end of that plug mapping_
-</small>
+<Callout>
+  note that if you're using the [incsearch](https://github.com/haya14busa/incsearch) plugin to handle all of your searching you'll have to add the `zvzt` to the end of that plug mapping
+</Callout>
 
 ---
 

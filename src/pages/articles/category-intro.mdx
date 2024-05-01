@@ -1,11 +1,12 @@
-import { ArticleLayout } from '~/components/ArticleLayout'
+import { ArticleLayout } from '~/components/Articles'
 
 export const meta = {
   title: 'An Attempt At Explaining Category Theory',
   category: 'computers',
   tags: ['programming', 'javascript', 'fp'],
   date: '2018-01-04',
-  description: "This is mostly a personal notebook of what I think I have learned. I make no guarantee about the accuracy of anything said here, I would appreciate any corrections or feedback on anything [I've ever] posted.",
+  description:
+    "This is mostly a personal notebook of what I think I have learned. I make no guarantee about the accuracy of anything said here, I would appreciate any corrections or feedback on anything [I've ever] posted.",
 }
 
 export default props => <ArticleLayout meta={meta} {...props} />
@@ -158,11 +159,7 @@ Knowing that a thing falls in the category of monoids yields valuable insights. 
 const sum = (...ns) => ns.reduce((a, b) => a + b, 0)
 const append = (...ss) => ss.reduce((a, b) => `${a}${b}`, '')
 const concat = (...as) => as.reduce((a, b) => [...a, ...b], [])
-const compose = (...fs) =>
-  fs.reduce(
-    (a, b) => x => a(b(x)),
-    a => a
-  )
+const compose = (...fs) => fs.reduce((a, b) => x => a(b(x)) a => a)
 ```
 
 ## Functors
@@ -211,13 +208,8 @@ const map = (fn, functor) => {
   if (t === 'Array') {
     return functor.map(fn)
   } else if (t === 'Object') {
-    return Object.entries(functor).reduce(
-      (p, [k, v]) => ({
-        ...p,
-        [k]: fn(v),
-      }),
-      {}
-    )
+    return Object.entries(functor)
+      .reduce((p, [k, v]) => ({ ...p, [k]: fn(v) }), {})
   }
   throw new Error(`expected a functor, recieved: ${t}`)
 }

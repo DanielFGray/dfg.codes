@@ -1,13 +1,13 @@
+'use client'
 import React, { useState, useRef, useCallback, forwardRef } from 'react'
 import ago from 's-ago'
-import { useRouter } from 'next/router'
+import { usePathname } from 'next/navigation'
 import {
   useSignIn,
   useAuth,
   useCreateComment,
   useLogout,
   useDeleteComment,
-  useRecentComments,
   useCommentFetcher,
   type Comment as TComment,
 } from '~/lib/comments'
@@ -17,6 +17,7 @@ import clsx from 'clsx'
 import { Transition } from '@headlessui/react'
 import Link from 'next/link'
 import { Card } from './Card'
+import { StarPost } from './StarThisPost'
 
 const providers = [
   // { provider: 'twitter', label: 'Twitter' },
@@ -41,11 +42,12 @@ function SignInForm({ signIn }: { signIn: (provider: Provider) => void }) {
 
 export function CommentSection() {
   const [replyId, setReplyId] = useState<null | number>(null)
-  const router = useRouter()
+  const router = usePathname()
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
   const session = useAuth()
   const signin = useSignIn()
-  const slug = router?.pathname.replace('/articles/', '')
+  const pathname = usePathname()
+  const slug = pathname.slice(pathname.lastIndexOf('/') + 1)
   const { data: comments, error, status } = useCommentFetcher({ slug })
 
   const setReplyWithFocus = useCallback((id: number) => {
@@ -58,21 +60,33 @@ export function CommentSection() {
   }, [])
 
   return (
-    <article className="mt-8 flex flex-col gap-2 border-t border-primary-200 pt-8 text-primary-900 dark:border-primary-700 dark:text-primary-200">
-      <h2 id="comment-section" className="text-center text-xl font-bold">
+    <article className="mt-8 flex-col gap-2 border-t border-primary-200 pt-8 text-primary-900 dark:border-primary-700 dark:text-primary-200">
+      <h2 id="comment-section" className="sr-only text-center text-xl font-bold">
         Comments
       </h2>
-      {session ? (
-        <CommentForm
-          ref={inputRef}
-          slug={slug}
-          avatarUrl={session.user?.user_metadata.avatar_url}
-          clearReplyId={() => setReplyId(null)}
-          replyId={replyId}
-        />
-      ) : (
-        <SignInForm signIn={signInMutation} />
-      )}
+      <div
+        className={clsx(
+          'flex flex-col-reverse lg:flex-row',
+          session ? 'justify-between' : 'justify-evenly',
+        )}
+      >
+        <div className={clsx('flex flex-col justify-around', session && 'flex-grow')}>
+          {session ? (
+            <CommentForm
+              ref={inputRef}
+              slug={slug}
+              avatarUrl={session.user?.user_metadata.avatar_url}
+              clearReplyId={() => setReplyId(null)}
+              replyId={replyId}
+            />
+          ) : (
+            <SignInForm signIn={signInMutation} />
+          )}
+        </div>
+        <div className="text-center">
+          <StarPost slug={slug} />
+        </div>
+      </div>
       <ul className="-m-1">
         <CommentList
           status={status}
@@ -81,6 +95,7 @@ export function CommentSection() {
           setReplyId={setReplyWithFocus}
           sessionUserId={session?.user.id ?? null}
           comments={comments}
+          slug={slug}
         />
       </ul>
     </article>
@@ -94,6 +109,7 @@ export function CommentList({
   error,
   setReplyId,
   sessionUserId,
+  slug,
 }: {
   comments: undefined | null | Array<TComment>
   replyId: null | number
@@ -101,16 +117,18 @@ export function CommentList({
   error: unknown
   setReplyId: (replyId: number) => void
   sessionUserId: null | string
+  slug: string
 }): JSX.Element {
   if (status === 'loading') {
     return <li className="text-center italic">Loading...</li>
   }
-  if (error || status === 'error' || (comments && ! Array.isArray(comments))) {
+  if (error || status === 'error' || (comments && !Array.isArray(comments))) {
     console.log('comments are not an array: ', error || comments)
     return <li className="text-center italic">There was an error fetching comments</li>
   }
   if (comments == null) return null
-  if (comments.length === 0) return <li className="text-center italic">No comments yet</li>
+  if (comments.length === 0)
+    return <li className="pt-8 text-center italic lg:pt-0">No comments yet</li>
 
   return (
     <>
@@ -121,6 +139,7 @@ export function CommentList({
           setReplyId={setReplyId}
           sessionUserId={sessionUserId}
           comment={c}
+          slug={slug}
         />
       ))}
     </>
@@ -143,8 +162,8 @@ export function Comment({
   user: { avatar_url: string; username: string; user_id: string }
   date: Date
   sessionUserId: null | string
-  setReplyId: (a: number) => void
-  deleteComment: { isLoading: boolean; isSuccess: boolean; mutate: (id: number) => void }
+  setReplyId(a: number): void
+  deleteComment: { isLoading: boolean; isSuccess: boolean; mutate(id: number): void }
 }): JSX.Element {
   return (
     <div
@@ -156,11 +175,13 @@ export function Comment({
         commentId === replyId && 'border-primary-300 dark:border-primary-600',
       )}
     >
-      <div className="flex flex-row gap-4 pr-2 text-sm">
+      <div className="flex flex-row gap-4 pr-2">
         <Avatar avatar_url={user.avatar_url} />
         <div className="flex flex-col justify-center text-primary-700 dark:text-primary-300">
-          <span>{user.username}</span>
-          <time className="cursor-help">
+          <Link href={`https://github.com/${user.username}`} className="font-medium tracking-wide">
+            {user.username}
+          </Link>
+          <time className="cursor-help font-extralight tracking-tight">
             <a title={date.toLocaleString()}>{ago(date)}</a>
           </time>
         </div>
@@ -201,23 +222,25 @@ export function CommentCard({
   sessionUserId,
   replyId,
   setReplyId,
+  slug,
   comment: { comment_id: commentId, user, created_at, body, children },
 }: {
   comment: TComment
+  slug: string
   depth?: number
   sessionUserId: string | null
   replyId: number | null
   setReplyId: (id: number) => void
 }) {
   const date = new Date(created_at)
-  const deleteComment = useDeleteComment()
+  const deleteComment = useDeleteComment(slug)
 
   return (
     <Transition
       as="li"
       key={commentId}
       id={`comment_${commentId}`}
-      show={! (deleteComment.isLoading || deleteComment.isSuccess)}
+      show={!(deleteComment.isLoading || deleteComment.isSuccess)}
       enter="transition-all duration-500"
       enterFrom="opacity-0 scale-y-0"
       enterTo="opacity-100 scale-y-100"
@@ -249,6 +272,7 @@ export function CommentCard({
                 replyId={replyId}
                 setReplyId={setReplyId}
                 sessionUserId={sessionUserId}
+                slug={slug}
               />
             ))}
           </ul>
@@ -367,7 +391,7 @@ export function Avatar({ avatar_url }: { avatar_url: string }) {
   return (
     <span className="relative inline-block">
       <img src={avatar_url} className="h-10 w-10 rounded-md" alt="" />
-      <span className="absolute bottom-0 right-0 block translate-y-1/4 translate-x-1/4 transform rounded-full">
+      <span className="absolute bottom-0 right-0 block translate-x-1/4 translate-y-1/4 transform rounded-full">
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 496 512"
@@ -377,44 +401,5 @@ export function Avatar({ avatar_url }: { avatar_url: string }) {
         </svg>
       </span>
     </span>
-  )
-}
-
-export function RecentComments() {
-  const { data } = useRecentComments()
-  return (
-    <>
-      <h2 className="mt-2 mb-6 text-center text-2xl font-bold text-white">recent comments</h2>
-      <div className="grid grid-cols-3 place-content-center gap-4">
-        {data?.map(comment => {
-          const date = new Date(comment.created_at)
-          return (
-            <Card key={comment.comment_id}>
-              <div className="flex flex-row gap-4 pr-2 text-sm">
-                <Avatar avatar_url={comment.profiles.avatar_url} />
-                <div className="font-light text-primary-500">
-                  <span className="font-normal text-primary-700 dark:text-primary-300">
-                    {comment.profiles.username}
-                  </span>
-                  {' on '}
-                  <Link href={`/blog/${comment.slug}#comment_${comment.comment_id}`}>
-                    <a className="font-normal text-primary-700 dark:text-primary-300">
-                      {comment.slug}
-                    </a>
-                  </Link>
-                  <br />
-                  <time className="cursor-help font-normal text-primary-700 dark:text-primary-300">
-                    <a title={date.toLocaleString()}>{ago(date)}</a>
-                  </time>
-                </div>
-              </div>
-              <div className="prose-p:primary-800 prose max-w-none whitespace-pre-wrap pt-2 text-primary-700 dark:prose-invert dark:text-primary-200 dark:prose-p:text-primary-100 ">
-                {comment.body}
-              </div>
-            </Card>
-          )
-        }) ?? null}
-      </div>
-    </>
   )
 }

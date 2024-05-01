@@ -2,194 +2,197 @@
 <rss version="2.0">
     <channel>
         <title>Daniel Gray</title>
-        <link>localhost:3000</link>
+        <link>danielfgray.com</link>
         <description>Your blog description</description>
-        <lastBuildDate>Thu, 02 Feb 2023 21:48:22 GMT</lastBuildDate>
+        <lastBuildDate>Wed, 01 May 2024 17:55:23 GMT</lastBuildDate>
         <docs>https://validator.w3.org/feed/docs/rss2.html</docs>
         <generator>https://github.com/jpmonette/feed</generator>
         <image>
             <title>Daniel Gray</title>
-            <url>localhost:3000/favicon.ico</url>
-            <link>localhost:3000</link>
+            <url>danielfgray.com/favicon.ico</url>
+            <link>danielfgray.com</link>
         </image>
-        <copyright>All rights reserved 2023</copyright>
+        <copyright>All rights reserved 2024</copyright>
+        <item>
+            <title><![CDATA[Authentication and Authorization using Postgres and Express]]></title>
+            <link>danielfgray.com/articles/express-auth</link>
+            <guid>danielfgray.com/articles/express-auth</guid>
+            <pubDate>Thu, 23 Nov 2023 00:00:00 GMT</pubDate>
+            <description><![CDATA[A step-by-step guide to using Postgres for authentication and authorization with an Express.js server]]></description>
+            <author>danielfgray@gmail.com (Daniel Gray)</author>
+        </item>
         <item>
             <title><![CDATA[Easy React Forms with FormData]]></title>
-            <link>localhost:3000/articles/ez-react-forms</link>
-            <guid>localhost:3000/articles/ez-react-forms</guid>
+            <link>danielfgray.com/articles/ez-react-forms</link>
+            <guid>danielfgray.com/articles/ez-react-forms</guid>
             <pubDate>Mon, 06 Jun 2022 00:00:00 GMT</pubDate>
             <description><![CDATA[Storing each form input value in React state can be tedious, but it doesn't have to be that way.]]></description>
             <author>danielfgray@gmail.com (Daniel Gray)</author>
         </item>
         <item>
             <title><![CDATA[Build Your Own Comment Section]]></title>
-            <link>localhost:3000/articles/diy-comments</link>
-            <guid>localhost:3000/articles/diy-comments</guid>
+            <link>danielfgray.com/articles/diy-comments</link>
+            <guid>danielfgray.com/articles/diy-comments</guid>
             <pubDate>Thu, 02 Jun 2022 00:00:00 GMT</pubDate>
             <description><![CDATA[How to build your own threaded comment section using Supabase and Postgres functions]]></description>
             <author>danielfgray@gmail.com (Daniel Gray)</author>
         </item>
         <item>
             <title><![CDATA[Backend FAQs]]></title>
-            <link>localhost:3000/articles/backend-faq</link>
-            <guid>localhost:3000/articles/backend-faq</guid>
+            <link>danielfgray.com/articles/backend-faq</link>
+            <guid>danielfgray.com/articles/backend-faq</guid>
             <pubDate>Wed, 13 Apr 2022 00:00:00 GMT</pubDate>
             <description><![CDATA[A [small] collection of frequently asked questions related to backend development]]></description>
             <author>danielfgray@gmail.com (Daniel Gray)</author>
         </item>
         <item>
             <title><![CDATA[Server-Side Rendering with React]]></title>
-            <link>localhost:3000/articles/react-ssr</link>
-            <guid>localhost:3000/articles/react-ssr</guid>
+            <link>danielfgray.com/articles/react-ssr</link>
+            <guid>danielfgray.com/articles/react-ssr</guid>
             <pubDate>Tue, 11 Aug 2020 00:00:00 GMT</pubDate>
             <description><![CDATA[Server rendering in React is often seen as mystical and esoteric, let's shed some light on it!]]></description>
             <author>danielfgray@gmail.com (Daniel Gray)</author>
         </item>
         <item>
             <title><![CDATA[Async Programming in Node.js]]></title>
-            <link>localhost:3000/articles/async-await</link>
-            <guid>localhost:3000/articles/async-await</guid>
+            <link>danielfgray.com/articles/async-await</link>
+            <guid>danielfgray.com/articles/async-await</guid>
             <pubDate>Thu, 07 Jun 2018 00:00:00 GMT</pubDate>
             <description><![CDATA[Callbacks, Promises, Async/Await (oh my!)]]></description>
             <author>danielfgray@gmail.com (Daniel Gray)</author>
         </item>
         <item>
             <title><![CDATA[Setting Up A Modern Webdev Toolchain]]></title>
-            <link>localhost:3000/articles/babel-webpack</link>
-            <guid>localhost:3000/articles/babel-webpack</guid>
+            <link>danielfgray.com/articles/babel-webpack</link>
+            <guid>danielfgray.com/articles/babel-webpack</guid>
             <pubDate>Wed, 06 Jun 2018 00:00:00 GMT</pubDate>
             <description><![CDATA[Modern JavaScript tooling can be a bit of a maze. Babel, Webpack, eslint, TypeScript, PostCSS... Maybe you've heard about them, maybe you don't know why you'd use them, maybe you just want to know how to get started with them. Read on!]]></description>
             <author>danielfgray@gmail.com (Daniel Gray)</author>
         </item>
         <item>
             <title><![CDATA[An Attempt At Explaining Category Theory]]></title>
-            <link>localhost:3000/articles/category-intro</link>
-            <guid>localhost:3000/articles/category-intro</guid>
+            <link>danielfgray.com/articles/category-intro</link>
+            <guid>danielfgray.com/articles/category-intro</guid>
             <pubDate>Thu, 04 Jan 2018 00:00:00 GMT</pubDate>
             <description><![CDATA[This is mostly a personal notebook of what I think I have learned. I make no guarantee about the accuracy of anything said here, I would appreciate any corrections or feedback on anything [I've ever] posted.]]></description>
             <author>danielfgray@gmail.com (Daniel Gray)</author>
         </item>
         <item>
             <title><![CDATA[Functional Programming: functional composition]]></title>
-            <link>localhost:3000/articles/fp-compose</link>
-            <guid>localhost:3000/articles/fp-compose</guid>
+            <link>danielfgray.com/articles/fp-compose</link>
+            <guid>danielfgray.com/articles/fp-compose</guid>
             <pubDate>Sat, 16 Sep 2017 00:00:00 GMT</pubDate>
             <description><![CDATA[Creating functions like Lego blocks]]></description>
             <author>danielfgray@gmail.com (Daniel Gray)</author>
         </item>
         <item>
             <title><![CDATA[Functional Programming: currying and partial application]]></title>
-            <link>localhost:3000/articles/fp-curry-pa</link>
-            <guid>localhost:3000/articles/fp-curry-pa</guid>
+            <link>danielfgray.com/articles/fp-curry-pa</link>
+            <guid>danielfgray.com/articles/fp-curry-pa</guid>
             <pubDate>Wed, 23 Aug 2017 00:00:00 GMT</pubDate>
             <description><![CDATA[An explanation of currying and partial application using JavaScript]]></description>
             <author>danielfgray@gmail.com (Daniel Gray)</author>
         </item>
         <item>
             <title><![CDATA[How I Made My Own Static-Site Generator]]></title>
-            <link>localhost:3000/articles/my-ssg</link>
-            <guid>localhost:3000/articles/my-ssg</guid>
+            <link>danielfgray.com/articles/my-ssg</link>
+            <guid>danielfgray.com/articles/my-ssg</guid>
             <pubDate>Sun, 18 Jun 2017 00:00:00 GMT</pubDate>
             <description><![CDATA[I had a fun time making my own static-site generator for a blog, and I thought this could serve as a practical introduction to Functional Reactive Programming (FRP).]]></description>
             <author>danielfgray@gmail.com (Daniel Gray)</author>
         </item>
         <item>
             <title><![CDATA[Creating a REST API in node.js]]></title>
-            <link>localhost:3000/articles/rest-js</link>
-            <guid>localhost:3000/articles/rest-js</guid>
+            <link>danielfgray.com/articles/rest-js</link>
+            <guid>danielfgray.com/articles/rest-js</guid>
             <pubDate>Wed, 19 Apr 2017 00:00:00 GMT</pubDate>
             <description><![CDATA[Getting started with making web APIs can be confusing, even overwhelming at first. I'd like to share my process for creating APIs in Node.js.]]></description>
             <author>danielfgray@gmail.com (Daniel Gray)</author>
         </item>
         <item>
             <title><![CDATA[Why Use React?]]></title>
-            <link>localhost:3000/articles/why-react</link>
-            <guid>localhost:3000/articles/why-react</guid>
+            <link>danielfgray.com/articles/why-react</link>
+            <guid>danielfgray.com/articles/why-react</guid>
             <pubDate>Mon, 17 Apr 2017 00:00:00 GMT</pubDate>
             <description><![CDATA[Introductions are hard, so I'm just gonna jump right into this.]]></description>
             <author>danielfgray@gmail.com (Daniel Gray)</author>
         </item>
         <item>
             <title><![CDATA[Parsing Bash Config Files]]></title>
-            <link>localhost:3000/articles/bash-config</link>
-            <guid>localhost:3000/articles/bash-config</guid>
+            <link>danielfgray.com/articles/bash-config</link>
+            <guid>danielfgray.com/articles/bash-config</guid>
             <pubDate>Tue, 21 Feb 2017 00:00:00 GMT</pubDate>
             <description><![CDATA[Many times a script is written that needs extra/persistent configuration from the user. In most languages this is no big deal, you just import your json/yaml/toml parser and you're good to go. The common thing to do for many bash scripts that require configuration is to ask the user to put another actual bash script containing variable declarations in the file:]]></description>
             <author>danielfgray@gmail.com (Daniel Gray)</author>
         </item>
         <item>
-            <title><![CDATA[Why GitLab]]></title>
-            <link>localhost:3000/articles/why-gitlab</link>
-            <guid>localhost:3000/articles/why-gitlab</guid>
-            <pubDate>Thu, 16 Feb 2017 00:00:00 GMT</pubDate>
-            <description><![CDATA[Occasionally people ask me why I use GitLab instead of GitHub.]]></description>
-            <author>danielfgray@gmail.com (Daniel Gray)</author>
-        </item>
-        <item>
             <title><![CDATA[Bash Scripting]]></title>
-            <link>localhost:3000/articles/bash-scripting</link>
-            <guid>localhost:3000/articles/bash-scripting</guid>
+            <link>danielfgray.com/articles/bash-scripting</link>
+            <guid>danielfgray.com/articles/bash-scripting</guid>
             <pubDate>Wed, 15 Feb 2017 00:00:00 GMT</pubDate>
+            <description><![CDATA[Bash is perhaps one of the hardest languages to learn how to script with, simply for the fact there's so much bad information out there. I'd like to share some tips and tricks I've learned.]]></description>
             <author>danielfgray@gmail.com (Daniel Gray)</author>
         </item>
         <item>
             <title><![CDATA[Learning Vim]]></title>
-            <link>localhost:3000/articles/vim-guide</link>
-            <guid>localhost:3000/articles/vim-guide</guid>
+            <link>danielfgray.com/articles/vim-guide</link>
+            <guid>danielfgray.com/articles/vim-guide</guid>
             <pubDate>Thu, 02 Feb 2017 00:00:00 GMT</pubDate>
+            <description><![CDATA[getting started with vim]]></description>
             <author>danielfgray@gmail.com (Daniel Gray)</author>
         </item>
         <item>
             <title><![CDATA[Functional Programming: a small introduction]]></title>
-            <link>localhost:3000/articles/fp-intro</link>
-            <guid>localhost:3000/articles/fp-intro</guid>
+            <link>danielfgray.com/articles/fp-intro</link>
+            <guid>danielfgray.com/articles/fp-intro</guid>
             <pubDate>Tue, 10 Jan 2017 00:00:00 GMT</pubDate>
             <description><![CDATA[It seems there's some confusion on why you might use functional programming methods like map/reduce/filter, and so I thought I'd write something to try and explain why I think they're useful and interesting.]]></description>
             <author>danielfgray@gmail.com (Daniel Gray)</author>
         </item>
         <item>
             <title><![CDATA[Beginning Drums]]></title>
-            <link>localhost:3000/articles/beginning-drums</link>
-            <guid>localhost:3000/articles/beginning-drums</guid>
+            <link>danielfgray.com/articles/beginning-drums</link>
+            <guid>danielfgray.com/articles/beginning-drums</guid>
             <pubDate>Wed, 26 Oct 2016 00:00:00 GMT</pubDate>
+            <description><![CDATA[a[n unfinished] guide to learning drums]]></description>
             <author>danielfgray@gmail.com (Daniel Gray)</author>
         </item>
         <item>
             <title><![CDATA[Killing the Display Manager]]></title>
-            <link>localhost:3000/articles/kill-dm</link>
-            <guid>localhost:3000/articles/kill-dm</guid>
+            <link>danielfgray.com/articles/kill-dm</link>
+            <guid>danielfgray.com/articles/kill-dm</guid>
             <pubDate>Thu, 29 Sep 2016 00:00:00 GMT</pubDate>
             <description><![CDATA[Display managers like LightDM and SDDM come standard with many Linux distros, and I personally find them useless. I'd like to share with you how to get rid of them and gain a bit of control over how X is launched, and take back a few precious megabytes of RAM.]]></description>
             <author>danielfgray@gmail.com (Daniel Gray)</author>
         </item>
         <item>
             <title><![CDATA[On permutations of rudiments]]></title>
-            <link>localhost:3000/articles/rudimental-permutations</link>
-            <guid>localhost:3000/articles/rudimental-permutations</guid>
+            <link>danielfgray.com/articles/rudimental-permutations</link>
+            <guid>danielfgray.com/articles/rudimental-permutations</guid>
             <pubDate>Mon, 14 Dec 2015 00:00:00 GMT</pubDate>
             <description><![CDATA[This post is still a work in progress, so bare with me please. If you spot any errors or have something you want to add, feel free to leave a comment below.]]></description>
             <author>danielfgray@gmail.com (Daniel Gray)</author>
         </item>
         <item>
             <title><![CDATA[Vim beginner's customization guide]]></title>
-            <link>localhost:3000/articles/vimrc-guide</link>
-            <guid>localhost:3000/articles/vimrc-guide</guid>
+            <link>danielfgray.com/articles/vimrc-guide</link>
+            <guid>danielfgray.com/articles/vimrc-guide</guid>
             <pubDate>Sun, 02 Aug 2015 00:00:00 GMT</pubDate>
-            <description><![CDATA[This article is for those who've been using Vim for a little while and have started to grasp modal editing and the powers of Vim, and now want to start customizing it. If you're completely new to Vim, I have another post describing some of the basic of learning Vim [here](/computers/vim-guide) but there are dozens of them on the internet, and Vim ships with `vimtutor` as well which is a great place to start.]]></description>
+            <description><![CDATA[I'm going to try to walk you through the process of creating your own configuration, by giving you my biased opinions in attempt to save you from some of the boring bits of testing things out (which admittedly can also be a rewarding process).]]></description>
             <author>danielfgray@gmail.com (Daniel Gray)</author>
         </item>
         <item>
             <title><![CDATA[Fuzzy searching for MPD in Bash]]></title>
-            <link>localhost:3000/articles/fzmp</link>
-            <guid>localhost:3000/articles/fzmp</guid>
+            <link>danielfgray.com/articles/fzmp</link>
+            <guid>danielfgray.com/articles/fzmp</guid>
             <pubDate>Sun, 02 Nov 2014 00:00:00 GMT</pubDate>
             <description><![CDATA[I recently came across fzf, which is an interactive filter for your shell, and wanted to make a script that filtered through and played my music library]]></description>
             <author>danielfgray@gmail.com (Daniel Gray)</author>
         </item>
         <item>
             <title><![CDATA[Backporting packages in Debian]]></title>
-            <link>localhost:3000/articles/debian-backporting</link>
-            <guid>localhost:3000/articles/debian-backporting</guid>
+            <link>danielfgray.com/articles/debian-backporting</link>
+            <guid>danielfgray.com/articles/debian-backporting</guid>
             <pubDate>Tue, 22 Oct 2013 00:00:00 GMT</pubDate>
             <description><![CDATA[Are you anxious for a new version of a particular package, and don't want to wait for someone else to submit it to backports? After a few hours of reading docs and testing this out myself I feel like I've gotten a good grasp on this, so I'd like to share what's been working for me.]]></description>
             <author>danielfgray@gmail.com (Daniel Gray)</author>

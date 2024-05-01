@@ -15,6 +15,22 @@ export interface Comment {
   children: ReadonlyArray<Comment>
 }
 
+export function QueryProvider({ children }) {
+  const queryClient = useRef(
+    new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: 0,
+          refetchOnMount: false,
+          refetchOnWindowFocus: true,
+          staleTime: Infinity,
+        },
+      },
+    }),
+  ).current
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+}
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
@@ -24,7 +40,7 @@ export function useAuth(): Session | null {
   const [session, setSession] = useState<Session | null>(null)
   useEffect(() => {
     try {
-      ;(async () => {
+      ; (async () => {
         const {
           data: { session },
         } = await supabase.auth.getSession()
@@ -47,9 +63,9 @@ export function useAuth(): Session | null {
 }
 
 export function useSignIn() {
-  return useMutation(
-    ['sign_in'],
-    async function signIn({
+  return useMutation({
+    mutationKey: ['sign_in'],
+    mutationFn: async function signIn({
       provider,
       options: { redirectTo, ...options },
     }: SignInWithOAuthCredentials) {
@@ -63,22 +79,20 @@ export function useSignIn() {
       if (error) throw error
       return data
     },
-  )
+  })
 }
 
 export function useCommentStats() {
-  return useQuery(
-    ['stats'],
-    async () => {
+  return useQuery({
+    queryKey: ['stats'],
+    queryFn: async () => {
       const { data, error } = await supabase.rpc('comments_stats')
       if (error) throw error
       return data as unknown as Record<string, `${number}`>
     },
-    {
-      refetchOnMount: true,
-      staleTime: 60000,
-    },
-  )
+    refetchOnMount: true,
+    staleTime: 60000,
+  })
 }
 
 export function useCommentFetcher({ slug }: { slug: string }) {
@@ -87,32 +101,35 @@ export function useCommentFetcher({ slug }: { slug: string }) {
     const subscription = supabase
       .channel('any')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, () => {
-        queryClient.invalidateQueries(['comments', slug])
-        queryClient.invalidateQueries(['recent_comments'])
-        queryClient.invalidateQueries(['stats'])
+        queryClient.invalidateQueries({ queryKey: ['comments', slug] })
+        queryClient.invalidateQueries({ queryKey: ['recent_comments'] })
+        queryClient.invalidateQueries({ queryKey: ['stats'] })
       })
       .subscribe()
     return () => {
       subscription.unsubscribe()
     }
   }, [slug, queryClient])
-  return useQuery(['comments', slug], async () => {
-    const { data, error } = await supabase.rpc('threaded_comments', { slug })
-    if (error) throw error
-    return data
+  return useQuery({
+    queryKey: ['comments', slug],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('threaded_comments', { slug })
+      if (error) throw error
+      return data
+    },
   })
 }
 
 export function useCreateComment() {
   const queryClient = useQueryClient()
   return useMutation(
-    ['new_comment'],
-    async (values: { slug: string; body: string; parent_id: number | null }) => {
-      const { data, error } = await supabase.from('comments').insert(values)
-      if (error) throw error
-      return data
-    },
     {
+      mutationKey: ['new_comment'],
+      mutationFn: async (values: { slug: string; body: string; parent_id: number | null }) => {
+        const { data, error } = await supabase.from('comments').insert(values)
+        if (error) throw error
+        return data
+      },
       async onMutate(variables) {
         const prevState = queryClient.getQueryData<Comment[]>(['comments', variables.slug])
         const {
@@ -146,98 +163,105 @@ export function useCreateComment() {
 }
 
 export function useLogout() {
-  return useMutation(['logout'], async () => {
-    await supabase.auth.signOut()
+  return useMutation(
+    {
+      mutationKey: ['logout'],
+      mutationFn: async () => {
+        await supabase.auth.signOut()
+      },
+    }
+  )
+}
+
+export function useDeleteComment(slug: string) {
+  const queryClient = useQueryClient()
+  return useMutation(
+    {
+      mutationKey: ['delete_comment'],
+      mutationFn: async (comment_id: number) => {
+        const { data, error } = await supabase.from('comments').delete().eq('comment_id', comment_id)
+        if (error) throw error
+        return data
+      },
+      onSuccess() {
+        queryClient.invalidateQueries()
+        queryClient.invalidateQueries({ queryKey: ['comments', slug] })
+      },
+    },
+  )
+}
+
+interface Likes {
+  total: number
+  available: number
+  max: number
+}
+
+interface TopPosts {
+  slug: string
+  comment_count: number
+  total_votes: number
+  latest_comment?: {
+    comment_id: number
+    user: {
+      username: string
+      avatarUrl: string
+    }
+    replying_to: {
+      username: string
+      avatarUrl: string
+    }
+    slug: string
+    body: string
+    created_at: string
+    updated_at: string
+  }
+}
+
+export function useTopPosts() {
+  return useQuery({
+    queryKey: ['stats'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('top_posts')
+      if (error) throw error
+      return data as TopPosts[]
+    },
+    refetchOnMount: true,
+    staleTime: 60000,
   })
 }
 
-export function useDeleteComment() {
+export function useGetLikes(slug: string) {
+  return useQuery({
+    queryKey: ['get_likes', slug],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_likes', { slug })
+      if (error) throw error
+      return data as unknown as Likes
+    },
+  })
+}
+
+export function useSendLike(
+  slug: string,
+  { onSuccess }: { onSuccess?: (likes: Likes) => void } = {},
+) {
   const queryClient = useQueryClient()
   return useMutation(
-    ['delete_comment'],
-    async (comment_id: number) => {
-      const { data, error } = await supabase.from('comments').delete().eq('comment_id', comment_id)
-      if (error) throw error
-      return data
-    },
     {
-      onSuccess() {
-        queryClient.invalidateQueries()
+      mutationKey: ['like_post', slug],
+      mutationFn: async (clicks: number) => {
+        const { data, error } = await supabase.rpc('like_post', {
+          post: slug,
+          requested_votes: clicks,
+        })
+        if (error) throw error
+        return data as unknown as Likes
       },
-    },
-  )
-}
-
-export function useRecentComments() {
-  return useQuery(
-    ['recent_comments'],
-    async () => {
-      const { data, error } = await supabase
-        .from('comments')
-        .select('comment_id,body,slug,created_at,user_id,profiles!profiles(username,avatar_url)')
-        .filter('user_id', 'neq', 'b625603f-e958-4c3a-9eb9-3ceb3601cbd9')
-        .order('created_at', { ascending: false })
-        .limit(10)
-      if (error) throw error
-      return data
-    },
-    {
-      refetchOnMount: true,
-      staleTime: 10000,
-    },
-  )
-}
-
-type Likes = { total: number; available: number }
-
-export function useGetLikes(post: string) {
-  return useQuery(
-    ['get_likes', post],
-    async () => {
-      const { data, error } = await supabase.rpc('get_likes', { post })
-      if (error) throw error
-      return data as unknown as Likes
-    },
-    {
-      refetchOnMount: true,
-      staleTime: 10000,
-      refetchInterval: 10000,
-    },
-  )
-}
-
-export function useSendLike(post: string) {
-  const queryClient = useQueryClient()
-  return useMutation(
-    ['like_post', post],
-    async (clicks?: number) => {
-      const { data, error } = await supabase.rpc('like_post', {
-        post,
-        requested_votes: clicks,
-      })
-      if (error) throw error
-      return data as unknown as Likes
-    },
-    {
       onSuccess(data) {
-        queryClient.setQueryData<Likes>(['get_likes', post], data)
+        queryClient.setQueryData<Likes>(['get_likes', slug], data)
+        onSuccess?.(data)
       },
     },
   )
-}
-
-export function QueryProvider({ children }) {
-  const client = useRef(
-    new QueryClient({
-      defaultOptions: {
-        queries: {
-          retry: 0,
-          refetchOnMount: false,
-          refetchOnWindowFocus: true,
-          staleTime: Infinity,
-        },
-      },
-    }),
-  )
-  return <QueryClientProvider client={client.current}>{children}</QueryClientProvider>
 }

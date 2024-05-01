@@ -1,70 +1,121 @@
-import Head from 'next/head'
 import clsx from 'clsx'
-
-import {
-  SocialLinks,
-  ArrowDownIcon,
-  BriefcaseIcon,
-  MailIcon,
-} from '~/components/SocialIcons'
+import { SocialLinks, ArrowDownIcon, BriefcaseIcon, MailIcon } from '~/components/SocialIcons'
 import { Button } from '~/components/Button'
-import { Article } from '~/pages/articles'
+import { TagLink, ArticleCard } from '~/components/Articles'
 import { Container } from '~/components/Container'
 import { generateRssFeed } from '~/lib/generateRssFeed'
-import { getAllArticles } from '~/lib/getAllArticles'
-import { Article as TArticle } from '~/types'
+import { getAllArticles, tagList } from '~/lib/getAllArticles'
+import Link from 'next/link'
+import { useTopPosts } from '~/lib/comments'
+import { useMemo, useState } from 'react'
+import Head from 'next/head'
+import { Metadata } from 'next'
 
 export async function getStaticProps() {
   await generateRssFeed()
+  const articles = await getAllArticles()
 
   return {
     props: {
-      articles: (await getAllArticles()).slice(0, 4).map(({ meta }) => meta),
+      tagList: tagList(articles),
+      articles: articles.map(({ content, ...meta }) => meta),
     },
   }
 }
 
-export default function Home({ articles }: { articles: Array<TArticle> }) {
+type StaticProps<T extends (...arg0: any[]) => any> = Awaited<ReturnType<T>>['props']
+
+const metadata: Metadata = {
+  title: 'Daniel Gray',
+  description: 'Software developer and drummer based in Houston, Texas.',
+}
+
+export default function Home(props: StaticProps<typeof getStaticProps>) {
   return (
     <>
       <Head>
-        <title>Daniel Gray - Software developer</title>
-        <meta
-          name="description"
-          content="Software developer and drummer based in Houston, Texas."
-        />
+        <title>{metadata.title}</title>
+        <meta name="description" content={metadata.description} />
       </Head>
-      <Container className="mt-9">
-        <div className="max-w-2xl space-y-6">
-          <h1 className="text-4xl font-bold tracking-tight text-primary-800 dark:text-primary-100 sm:text-5xl">
-            Daniel Gray
-          </h1>
-          <p className="text-base text-primary-600 dark:text-primary-400">
-            Software developer and drummer based in Houston, Texas.
-          </p>
-          <ul className="flex gap-0.5">
-            <SocialLinks labels={false} />
+      <Topper />
+      <Container className="py-12">
+        <div className="text-xl font-semibold text-primary-700 dark:text-primary-200">
+          things I write about:
+        </div>
+        <div className="pt-4">
+          <ul className="flex flex-wrap items-baseline gap-1 text-xs">
+            {props.tagList.map(t => (
+              <TagLink key={t}>{t}</TagLink>
+            ))}
           </ul>
         </div>
       </Container>
-      <Photos />
-      <Container className="md:mt-18 mt-16">
-        <div className="md:border-l md:border-primary-100 md:pl-6 md:dark:border-primary-700/40">
-          <div className="flex max-w-3xl flex-col space-y-16">
-            {articles.map(article => (
-              <Article key={article.slug} article={article} />
-            ))}
-          </div>
-          <Button
-            href="/articles"
-            variant="secondary"
-            className="group mt-12 w-full"
-          >
-            Read more
-          </Button>
-        </div>
-      </Container>
+      <ArticleList {...props} />
     </>
+  )
+}
+
+function Topper() {
+  return (
+    <Container className="mt-9">
+      <div className="max-w-2xl space-y-6">
+        <h1 className="text-4xl font-bold tracking-tight text-primary-800 dark:text-primary-100 sm:text-5xl">
+          {metadata.title}
+        </h1>
+        <p className="text-base text-primary-600 dark:text-primary-400">
+          {metadata.description}
+        </p>
+        <ul className="flex gap-0.5">
+          <SocialLinks labels={false} />
+        </ul>
+      </div>
+    </Container>
+  )
+}
+
+function ArticleList({ articles }: StaticProps<typeof getStaticProps>) {
+  const { data: stats } = useTopPosts()
+  const [order, setOrder] = useState<'latest' | 'popular'>('latest')
+  const maxList = 6
+  const topPosts = useMemo(() => {
+    if (! stats) return []
+
+    return stats
+      .map(s => ({ ...articles.find(a => a.slug === s.slug), ...s }))
+      .sort((a, b) => {
+        const aa = Math.ceil(a.comment_count * 5 + a.total_votes)
+        const bb = Math.ceil(b.comment_count * 5 + b.total_votes)
+        return bb - aa
+      })
+      .slice(0, maxList)
+  }, [articles, stats])
+  const filter = order === 'popular' ? topPosts : articles
+  return (
+    <Container>
+      <div className="flex justify-around pb-12">
+        <button
+          className={clsx(
+            'block rounded-full p-2 px-3 text-sm font-medium shadow-lg ring-1',
+            'bg-primary-50/90 text-primary-800 shadow-secondary-800/5 ring-secondary-900/5 dark:bg-primary-800/90 dark:text-primary-200 dark:ring-primary-700',
+            'hover:text-secondary-700 dark:hover:text-secondary-300 hover:ring-2 hover:ring-secondary-700',
+          )}
+          onClick={() => setOrder(order === 'latest' ? 'popular' : 'latest')}
+        >
+          {order} things I&apos;ve written:
+        </button>
+      </div>
+      <div className="flex flex-col space-y-16">
+        {filter.slice(0, maxList).map(article => (
+          <ArticleCard key={article.slug} {...article} />
+        ))}
+      </div>
+
+      <div className="mt-16 w-full flex-1">
+        <Button as={Link} href="/articles" color="secondary" className="w-full rounded-xl p-4">
+          Read more
+        </Button>
+      </div>
+    </Container>
   )
 }
 
@@ -87,9 +138,9 @@ function Newsletter() {
           placeholder="Email address"
           aria-label="Email address"
           required
-          className="min-w-0 flex-auto appearance-none rounded-md border border-primary-900/10 bg-white px-3 py-[calc(theme(spacing.2)-1px)] shadow-md shadow-primary-800/5 placeholder:text-primary-400 focus:border-secondary-500 focus:outline-none focus:ring-4 focus:ring-secondary-500/10 dark:border-primary-700 dark:bg-primary-700/[0.15] dark:text-primary-200 dark:placeholder:text-primary-500 dark:focus:border-secondary-400 dark:focus:ring-secondary-400/10 sm:text-sm"
+          className="min-w-0 flex-auto appearance-none rounded-md border border-primary-900/10 bg-primary-50 px-3 py-[calc(theme(spacing.2)-1px)] shadow-md shadow-primary-800/5 placeholder:text-primary-400 focus:border-secondary-500 focus:outline-none focus:ring-4 focus:ring-secondary-500/10 dark:border-primary-700 dark:bg-primary-700/[0.15] dark:text-primary-200 dark:placeholder:text-primary-500 dark:focus:border-secondary-400 dark:focus:ring-secondary-400/10 sm:text-sm"
         />
-        <Button type="submit" variant="secondary" className="ml-4 flex-none">
+        <Button type="submit" color="secondary" className="ml-4 flex-none">
           Join
         </Button>
       </div>
@@ -151,35 +202,19 @@ function Resume() {
                 {role.company}
               </dd>
               <dt className="sr-only">Role</dt>
-              <dd className="text-xs text-primary-500 dark:text-primary-400">
-                {role.title}
-              </dd>
+              <dd className="text-xs text-primary-500 dark:text-primary-400">{role.title}</dd>
               <dt className="sr-only">Date</dt>
               <dd
                 className="ml-auto text-xs text-primary-400 dark:text-primary-500"
                 aria-label={`${
                   typeof role.start === 'string' ? role.start : role.start.label
-                } until ${
-                  typeof role.end === 'string' ? role.end : role.end.label
-                }`}
+                } until ${typeof role.end === 'string' ? role.end : role.end.label}`}
               >
-                <time
-                  dateTime={
-                    typeof role.start === 'string'
-                      ? role.start
-                      : role.start.dateTime
-                  }
-                >
-                  {typeof role.start === 'string'
-                    ? role.start
-                    : role.start.label}
+                <time dateTime={typeof role.start === 'string' ? role.start : role.start.dateTime}>
+                  {typeof role.start === 'string' ? role.start : role.start.label}
                 </time>{' '}
                 <span aria-hidden="true">—</span>{' '}
-                <time
-                  dateTime={
-                    typeof role.end === 'string' ? role.end : role.end.dateTime
-                  }
-                >
+                <time dateTime={typeof role.end === 'string' ? role.end : role.end.dateTime}>
                   {typeof role.end === 'string' ? role.end : role.end.label}
                 </time>
               </dd>
@@ -187,7 +222,7 @@ function Resume() {
           </li>
         ))}
       </ol>
-      <Button href="#" variant="secondary" className="group mt-6 w-full">
+      <Button as={Link} href="#" color="secondary" className="group mt-6 w-full">
         Download CV
         <ArrowDownIcon className="h-4 w-4 stroke-primary-400 transition group-active:stroke-primary-600 dark:group-hover:stroke-primary-50 dark:group-active:stroke-primary-50" />
       </Button>

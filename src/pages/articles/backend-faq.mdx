@@ -1,38 +1,101 @@
-import { ArticleLayout } from '~/components/ArticleLayout'
+import { ArticleLayout } from '~/components/Articles'
+import dynamic from 'next/dynamic'
+
+export const BackendHosting = dynamic(() => import('../../components/HostingProviders.tsx'))
 
 export const meta = {
   title: 'Backend FAQs',
   category: 'computers',
   tags: ['nodejs', 'programming'],
   date: '2022-04-13',
-  description: 'A [small] collection of frequently asked questions related to backend development'
+  description: 'A [small] collection of frequently asked questions related to backend development',
 }
 
 export default props => <ArticleLayout meta={meta} {...props} />
 
-## How do I avoid CORS errors and connect my create-react-app frontend to my express API?
+A [small] collection of frequently asked questions related to backend development
 
-Are you getting CORS errors during development when you try to access your backend? This happens when your backend is another port than your frontend, and the browser treats this as cross-origin. If your frontend and backend are same-origin (ie on the same host and port) then browsers do not impose CORS header restrictions or perform preflight requests, simplifying your backend setup and improving user performance.
+## How can I deploy my app?
 
-Assuming your express server runs on port 3001 and CRA is running in 3000, then you can add the `proxy` field in your `package.json`
+There are several platforms with various tradeoffs that you can use to deploy your app.
+
+A _managed_ host will handle the infrastructure for you. You just need to provide the code and they will take care of the rest. This is the easiest option, but it is also the most expensive if/when you grow out of their free tier.
+
+A _VPS_ (Virtual Private Server) is a virtual machine that lets you run any programs you want. You can set up a proxy like [nginx](https://nginx.org) or [caddy](https://caddyserver.com) to serve all your different projects on different domains, and use any database you want (and re-use it in different projects). There are also tools like [caprover](https://caprover.com) and [coolify](https://coolify.io) that make deploying to a VPS easier.
+
+<BackendHosting />
+
+## Where can I get a free database?
+
+- [ElephantSQL](https://elephantsql.com/) is _just_ plain vanilla Postgres as-a-service
+- [Supabase](https://supabase.com/) is a whole backend as-a-service, you can just use the Postgres connection string and none or some of the other stuff they have, which includes a bunch of Postgres extensions like postGIS, super easy oauth authentication with their JS lib which also has a real-time layer over Postgres using logical replication, and it also includes generated http endpoints via postgREST or a graphql api, both of which can leverage Postgres RLS to enforce custom authorization policies
+- [Neon](https://console.neon.tech/app/projects) is a heavily customized Postgres that de-couples computing and storage, which can later give you the choice to pay for more cpu and less storage or vice versa. they're in "technical preview" though, and i'm guessing their free tier will eventually either downgrade or disappear
+- [fly.io](https://fly.io) has a free tier that includes Postgres and a bunch of other features for deploying your app
+- [Amazon RDS](https://aws.amazon.com/rds/free/) has a free tier, but as of writing it only lasts a year
+
+## How do I avoid CORS errors and connect my frontend dev server to my backend API?
+
+CORS errors during development happen when your backend is another port than your frontend, and the browser treats this as _cross-origin_. If your frontend and backend are _same-origin_ (ie on the same host and port) then browsers do not impose CORS restrictions or perform preflight requests, simplifying your backend setup and improving request latency.
+
+### Vite
+
+If you are using Vite, in your `vite.config.js`:
+
+```js
+export default defineConfig({
+  server: {
+    proxy: {
+      '/api': 'http://localhost:3000',
+    },
+  },
+}),
+```
+
+This expects that your api requests include a route prefix, like `/api`. In express you can do this by adding all of your api endpoints to a `Router` and then mounting that router at a specific route:
+
+```js
+import express from 'express';
+const app = express();
+
+app.use(express.json({ strict: true }); // example middleware
+
+const router = express.Router();
+router.get('/hello', (req, res) => res.json({ message: 'hello world' }));
+router.post('/endpoint', (req, res) => res.json({ received: req.body })));
+
+app.use('/api', router); // make sure this matches your vite config
+
+const port = process.env.PORT || 3000;
+app.listen(port, () => console.log(`server running on port ${port}`));
+```
+
+### create-react-app
+
+`create-react-app` doesn't have the same restriction as vite, it will simply forward any unknown requests to your backend. You can configure the proxy in your `package.json`:
 
 ```json package.json
 {
   //...
-  "proxy": "http://localhost:3001"
+  "proxy": "http://localhost:3000"
 }
 ```
 
-`create-react-app` will then proxy unknown requests to your backend. You can read more about how CRA handles this in [their docs](https://create-react-app.dev/docs/proxying-api-requests-in-development/).
+You can read more about how CRA handles this in [their docs](https://create-react-app.dev/docs/proxying-api-requests-in-development/).
 
-If you're not using `create-react-app` and using `webpack-dev-server` directly, then you would pass the proxy option to `devServer` in your webpack configuration [as described in the webpack docs](https://webpack.js.org/configuration/dev-server/#devserverproxy).
+### webpack-dev-server
 
-Now make sure all your requests to your backend are using relative URLs rather than including host and port, like so:
+If you are using `webpack-dev-server` directly instead of in a framework, please consult their [their docs](https://webpack.js.org/configuration/dev-server/#devserverproxy).
+
+### Small front-end changes:
+
+Now make sure all your requests to your backend are using relative URLs rather than including host and port, for example:
 
 ```diff
 -fetch('http://localhost:3001/api/endpoint')
 +fetch('/api/endpoint')
 ```
+
+### Production
 
 For production deployments, you would use nginx to serve your react app and proxy API requests to your backend.
 
@@ -85,3 +148,10 @@ Then you must consider that ORMs and query builders are platform specific. If yo
 SQL is platform agnostic. It doesn't care if you use JavaScript or Python or anything else, you can send SQL queries from any language and have data returned in a format your application can use.
 
 Learn SQL, if you don't rely on ORMs or query builders to abstract away the details of interacting with your database from you, you will write more performant queries and you will have a better understanding of how to debug slower queries.
+
+## Should I store images in my database?
+
+Binary assets that you can't index and search should be stored direct to disk instead of in a database.  
+Postgres, for example, persists data to disk in pages and blocks, adding an extra layer of abstraction on top of the filesystem's pages and blocks.  
+Larger entries in a row (eg >2000 bytes) usually get stored in a separate page outside of normal table data, which is a slightly more costly lookup. So storing large binary data in a database becomes a more expensive operation than other types of lookups.  
+It's better to store those files directly on disk, and then store the file path to those files in the db instead.

@@ -10,16 +10,21 @@
     "noEmit": true,
     "incremental": true,
     "esModuleInterop": true,
-    "module": "ESNext",
+    "module": "esnext",
     "moduleResolution": "NodeNext",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "preserve",
     "baseUrl": ".",
     "paths": {
-      "~/*": ["src/*"]
-    }
+      "~/*": ["src/*"],
+    },
+    "plugins": [
+      {
+        "name": "next",
+      },
+    ],
   },
-  "include": ["next-env.d.ts", "**/*"],
-  "exclude": ["node_modules"]
+  "include": ["next-env.d.ts", "**/*", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"],
 }

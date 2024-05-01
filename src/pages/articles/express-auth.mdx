@@ -1,0 +1,2211 @@
+import { ArticleLayout } from '~/components/Articles'
+import { Callout } from '~/components/Prose'
+
+export const meta = {
+  title: 'Authentication and Authorization using Postgres and Express',
+  category: 'computers',
+  tags: ['programming', 'postgres', 'nodejs', 'express', 'sql', 'typescript', 'unfinished'],
+  date: '2023-11-23',
+  description:
+    'A step-by-step guide to using Postgres for authentication and authorization with an Express.js server',
+}
+
+export default props => <ArticleLayout meta={meta}>{props.children}</ArticleLayout>
+
+## what we're building
+
+we're going to build a server that lets users make "posts", we'll add peristence, authentication, and authorization to it as we go
+
+## Setting Up the Express Server
+
+first we need to set up our `package.json` and install some dependencies
+
+<CH.Code>
+```bash terminal
+npm init -y
+npm i express express-session morgan npm-run-all nodemon
+export PORT=3000
+```
+---
+```json package.json focus=3:4
+{
+  "scripts": {
+    "dev:server": "nodemon -e js,mjs,jsx -w server -x 'node server/index.mjs'",
+    "dev": "run-p -s dev:*"
+  }
+}
+```
+</CH.Code>
+
+<div className="full-bleed">
+<CH.Scrollycoding className="wide-code" rows={35}>
+
+first import and initialize express
+
+```js server/index.mjs focus=1:7
+import express from 'express';
+
+const { PORT } = process.env;
+
+const app = express();
+
+app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`));
+```
+
+---
+
+add our logging middleware first
+
+```js server/index.mjs focus=2,8
+import express from 'express';
+import morgan from 'morgan';
+
+const { NODE_ENV, PORT } = process.env;
+
+const app = express();
+
+app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
+
+app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`));
+```
+
+---
+
+in order to handle parsing the body of an http request we need to add some middleware
+
+```js server/index.mjs focus=8:9
+import express from 'express';
+import morgan from 'morgan';
+
+const { NODE_ENV, PORT } = process.env;
+
+const app = express();
+app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
+app.use(express.json({ strict: true }));
+app.use(express.urlencoded({ extended: false }));
+
+app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`));
+```
+
+---
+
+and also configure the `express-session` middleware
+
+```js server/index.mjs focus=2,12:31
+import express from 'express';
+import session from 'express-session';
+import morgan from 'morgan';
+
+const { NODE_ENV, PORT } = process.env;
+
+const app = express();
+
+app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
+app.use(express.json({ strict: true }));
+app.use(express.urlencoded({ extended: false }));
+app.use(
+  session({
+    // Force the session id cookie to be set on every response, and reset the expiration countdown.
+    rolling: true,
+    // Don't force a session to be created if we don't set any data.
+    saveUninitialized: false,
+    // Don't force the session to be saved back to the session store if we didn't modify it.
+    resave: false,
+    // A secret used to sign the cookie
+    secret: process.env.SECRET,
+    cookie: {
+      // sessions expire after 14 days
+      maxAge: 1000 * 60 * 60 * 24 * 14,
+      // The cookie can't be read by JavaScript.
+      httpOnly: true,
+      // The cookie can't be sent with cross-origin requests.
+      sameSite: 'lax',
+      // The cookie will be set with the secure flag if we're using HTTPS.
+      secure: 'auto',
+    },
+  }),
+);
+
+app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`));
+```
+
+---
+
+we can add some routes that update an in-memory list of "posts"
+
+this usually isn't a great idea but we'll fix it later
+
+```js server/index.mjs focus=27:37
+import express from 'express';
+import session from 'express-session';
+import morgan from 'morgan';
+
+const { NODE_ENV, PORT } = process.env;
+
+const app = express();
+
+app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
+app.use(express.json({ strict: true }));
+app.use(express.urlencoded({ extended: false }));
+app.use(
+  session({
+    rolling: true,
+    saveUninitialized: false,
+    resave: false,
+    secret: process.env.SECRET,
+    cookie: {
+      maxAge: 1000 * 60 * 60 * 24 * 14,
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: 'auto',
+    },
+  }),
+);
+
+const posts = [];
+
+app.get('/posts', (req, res) => {
+  res.json(posts);
+});
+
+app.post('/posts', (req, res) => {
+  const { name, body } = req.body;
+  posts.push({ name, body });
+  res.json(posts);
+});
+
+app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`));
+```
+
+---
+
+and finally, store the user name in a session
+
+```js server/index.mjs focus=34:43 bg=36,41:43
+import express from 'express';
+import session from 'express-session';
+import morgan from 'morgan';
+
+const { NODE_ENV, PORT } = process.env;
+
+const app = express();
+
+app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
+app.use(express.json({ strict: true }));
+app.use(express.urlencoded({ extended: false }));
+
+app.use(
+  session({
+    rolling: true,
+    saveUninitialized: false,
+    resave: false,
+    secret: process.env.SECRET,
+    cookie: {
+      maxAge: 1000 * 60 * 60 * 24 * 14,
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: 'auto',
+    },
+  }),
+);
+
+const posts = [];
+
+app.get('/posts', (req, res) => {
+  res.json(posts);
+});
+
+app.post('/posts', (req, res) => {
+  const { name, body } = req.body;
+  req.session.user = { name };
+  posts.push({ name, body });
+  res.json(posts);
+});
+
+app.get('/currentUser', (req, res) => {
+  res.json(req.session.user);
+});
+
+app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`));
+```
+
+</CH.Scrollycoding>
+</div>
+
+we can test our server by running `npm run dev:server` and sending some requests to it, here for example using `curl`:
+
+```sh
+# send a post with a name and store the cookie
+curl -v -c sess.cookie localhost:$PORT/posts -d 'name=you' -d 'body=hello world!'
+# use the cookie to retrieve the name
+curl -v -b sess.cookie localhost:$PORT/currentUser
+```
+
+<Callout>
+<Callout.Title>how do cookie sessions work?</Callout.Title>
+
+1. we put some randomly generated and very hard to guess gibberish (sometimes called an *opaque* token) in a [signed] cookie for a user
+2. you put that token, along with some data (eg their user id) into a table with an expiration
+3. on every request you look at the token in the cookie [and check it's signature], see if it exists in the db and isnt expired, and return the data (eg the user id)
+4. passing around that random, hard-to-guess token makes it very hard to try to impersonate another user, and storing the data (user_id) and expiration in the db means you can revoke the session whenever you want since you own the db
+</Callout>
+
+the code above uses in-memory data structures to store posts and sessions, which may work fine during development, but isn't suitable for a production deployment since it has no persistence or cache eviction strategy and so memory usage will scale linearly with new sessions and posts and eventually cause the process to use up all available memory and crash with no way to recover the data afterwards
+
+## Persisting Data with Postgres
+
+To persist our data we'll need a database, and what better choice is there than Postgres, the world's most advanced open source database?
+
+There are many ways to run Postgres, one of the easiest ways to manage Postgres for development and production is to use Docker. I've provided a `docker-compose.yml` file that will run a Postgres 16 server and expose it on port 5432, and a script that will create a database and user for our application.
+
+```sh terminal
+npm i postgres
+npm i -D dotenv inquirer
+````
+
+<CH.Code showExpandButton>
+```yaml docker-compose.yml
+version: "3.8"
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=${ROOT_DATABASE_USER}
+      - POSTGRES_PASSWORD=${ROOT_DATABASE_PASSWORD}
+    command: "postgres -c shared_preload_libraries=pg_stat_statements -c pg_stat_statements.track=all -c log_destination=stderr"
+    volumes: - /var/run/postgresql:/var/run/postgresql
+    ports:
+      - 5432:5432
+````
+
+```js scripts/generate-dotenv.mjs
+// @ts-check
+import path from 'node:path';
+import fs from 'node:fs/promises';
+import crypto from 'node:crypto';
+import dotenv from 'dotenv';
+import inquirer from 'inquirer';
+
+const DOTENV_PATH = path.resolve('.env');
+
+/** validates database name
+ * @param {string} str database name
+ * @returns {true | string} returns true or an error
+ */
+function validName(str) {
+  if (str.length < 4) return 'must be at least 4 characters';
+  if (str !== str.toLowerCase()) return 'must be lowercase';
+  return true;
+}
+
+/** generates a password
+ * @param {number} length password length
+ * @param {BufferEncoding} type password encoding
+ * @returns {string} generated password
+ */
+function generatePassword(length, type = 'base64') {
+  return crypto.randomBytes(length).toString(type).replace(/\W/g, '_').toLowerCase();
+}
+
+async function readDotenv() {
+  try {
+    return dotenv.parse(await fs.readFile(DOTENV_PATH, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * @param {null | Record<string,string | undefined>} config current environment object
+ * @returns {Promise<void>} void
+ */
+async function createConfig(config) {
+  const packageJson = JSON.parse(await fs.readFile('./package.json', 'utf8'));
+  const packageName = packageJson.name.replace(/\W/g, '_').replace(/__+/g, '').replace(/^_/, '');
+
+  const {
+    ROOT_DATABASE_USER,
+    DATABASE_HOST,
+    DATABASE_NAME,
+    DATABASE_OWNER,
+    PORT,
+    ROOT_URL,
+  } = await inquirer.prompt(
+    [
+      {
+        name: 'ROOT_DATABASE_USER',
+        message: 'superuser database username:',
+        default: 'postgres',
+        prefix: '',
+      },
+      {
+        name: 'DATABASE_HOST',
+        message: 'database host:',
+        default: 'localhost:5432',
+        prefix: '',
+      },
+      {
+        name: 'DATABASE_NAME',
+        message: 'database name:',
+        default: packageName,
+        validate: validName,
+        prefix: '',
+      },
+      {
+        name: 'DATABASE_OWNER',
+        message: 'database username:',
+        default: prompt => prompt.DATABASE_NAME,
+        prefix: '',
+      },
+      {
+        name: 'PORT',
+        message: 'application port:',
+        default: '3000',
+        prefix: '',
+      },
+      {
+        name: 'ROOT_URL',
+        message: 'application url:',
+        default: prompt => `http://localhost:${prompt.PORT}`,
+        prefix: '',
+      },
+    ],
+    Object.assign({}, config, process.env),
+  );
+
+  let PASSWORDS = {
+    ROOT_DATABASE_PASSWORD: config?.ROOT_DATABASE_PASSWORD,
+    DATABASE_OWNER_PASSWORD: config?.DATABASE_OWNER_PASSWORD,
+    SECRET: config?.SECRET,
+  };
+
+  if (!Object.values(PASSWORDS).every(Boolean)) {
+    PASSWORDS = (
+      await inquirer.prompt({
+        name: 'genpwd',
+        message: 'generate passwords?',
+        type: 'confirm',
+        prefix: '',
+      })
+    ).genpwd
+      ? {
+          ROOT_DATABASE_PASSWORD: config?.ROOT_DATABASE_PASSWORD ?? generatePassword(18),
+          DATABASE_OWNER_PASSWORD: config?.DATABASE_OWNER_PASSWORD ?? generatePassword(18),
+          SECRET: config?.SECRET ?? generatePassword(32, 'hex'),
+        }
+      : await inquirer.prompt(
+          [
+            {
+              name: 'ROOT_DATABASE_PASSWORD',
+              default: () => generatePassword(18),
+              prefix: '',
+            },
+            {
+              name: 'DATABASE_OWNER_PASSWORD',
+              default: () => generatePassword(18),
+              prefix: '',
+            },
+            {
+              name: 'SECRET',
+              default: () => generatePassword(32, 'hex'),
+              prefix: '',
+            },
+          ],
+          PASSWORDS,
+        );
+  }
+
+  const envFile = Object.entries({
+    ...config,
+    NODE_ENV: 'development',
+    ROOT_DATABASE_USER: ROOT_DATABASE_USER,
+    ROOT_DATABASE_PASSWORD: PASSWORDS.ROOT_DATABASE_PASSWORD,
+    ROOT_DATABASE_URL: `postgres://${ROOT_DATABASE_USER}:${PASSWORDS.ROOT_DATABASE_PASSWORD}@${DATABASE_HOST}/template1`,
+    DATABASE_HOST: DATABASE_HOST,
+    DATABASE_NAME: DATABASE_NAME,
+    DATABASE_OWNER: DATABASE_OWNER,
+    DATABASE_OWNER_PASSWORD: PASSWORDS.DATABASE_OWNER_PASSWORD,
+    DATABASE_URL: `postgres://${DATABASE_OWNER}:${PASSWORDS.DATABASE_OWNER_PASSWORD}@${DATABASE_HOST}/${DATABASE_NAME}`,
+    SECRET: PASSWORDS.SECRET,
+    PORT,
+    ROOT_URL,
+  });
+    .map(([k, v]) => `${k}=${v}`)
+    .join('\n')
+    .concat('\n');
+
+  await fs.writeFile(DOTENV_PATH, envFile, 'utf8');
+  console.log(`.env file ${config ? 'updated' : 'created'}`);
+}
+
+async function main() {
+  createConfig(await readDotenv());
+}
+
+main();
+````
+
+```js scripts/db-setup.mjs
+// @ts-check
+import postgres from 'postgres';
+import inquirer from 'inquirer';
+
+const { DATABASE_OWNER, DATABASE_OWNER_PASSWORD, DATABASE_NAME, ROOT_DATABASE_URL } = process.env;
+
+const RECONNECT_BASE_DELAY = 100;
+const RECONNECT_MAX_DELAY = 30000;
+
+/**
+ * @param {number | undefined} ms
+ */
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+if (!ROOT_DATABASE_URL) {
+  console.error('ROOT_DATABASE_URL is not set');
+  process.exit(1);
+}
+
+const sql = postgres(ROOT_DATABASE_URL);
+
+async function main() {
+  let attempts = 0;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    try {
+      await sql`select true as "Connection test"`;
+      break;
+    } catch (e) {
+      if (e.code === '28P01') throw e;
+      attempts++;
+      if (attempts <= 30) {
+        console.log(`Database is not ready yet (attempt ${attempts}): ${e.message}`);
+      } else {
+        console.log(`Database never came up, aborting :(`);
+        process.exit(1);
+      }
+      const delay = Math.floor(
+        Math.min(
+          RECONNECT_MAX_DELAY,
+          RECONNECT_BASE_DELAY * Math.random() * 2 ** attempts,
+        ),
+      );
+      await sleep(delay);
+    }
+  }
+
+  console.log(`DROP DATABASE ${DATABASE_NAME}`);
+  console.log(`DROP ROLE ${DATABASE_OWNER}`);
+
+  const { confirm } = process.env.NOCONFIRM
+    ? { confirm: true }
+    : await inquirer.prompt([
+        {
+          name: 'confirm',
+          message: 'press y to continue:',
+          type: 'confirm',
+          prefix: '',
+        },
+      ]);
+  if (!confirm) process.exit();
+
+  try {
+    await sql.unsafe(`drop database if exists ${DATABASE_NAME}`);
+    await sql.unsafe(`drop role if exists ${DATABASE_OWNER}`);
+    await sql.unsafe(`create database ${DATABASE_NAME}`);
+    console.log(`CREATE DATABASE ${DATABASE_NAME}`);
+
+    await sql.unsafe`
+      create role ${DATABASE_OWNER} with login
+      password '${DATABASE_OWNER_PASSWORD}' noinherit`;
+    console.log(`CREATE ROLE ${DATABASE_OWNER}`)
+
+    await sql.unsafe`
+      grant all privileges on database ${DATABASE_NAME}
+      to ${DATABASE_OWNER}`;
+    console.log(`GRANT ${DATABASE_OWNER}`)
+  } catch (e) {
+    console.error(e);
+  } finally {
+    await sql.end();
+  }
+}
+main();
+```
+
+</CH.Code>
+
+```json package.json bg=3:8 focus=3:8 mark=7[61:76]
+{
+  "scripts": {
+    "setup": "run-s env:init db:up db:setup",
+    "env:init": "node scripts/generate-dotenv.mjs",
+    "db:up": "docker-compose up -d db",
+    "db:setup": "node -r dotenv/config scripts/db-setup.mjs",
+    "dev:server": "nodemon -e js,mjs,jsx -w server -x 'node -r dotenv/config server/index.mjs'",
+    "predev": "run-s -s db:up",
+    "dev": "run-p -s dev:*"
+  }
+}
+```
+
+---
+
+now that we have a running postgres cluster first we need to create some tables
+
+<CH.Code rows={15}>
+```sql migrations/0010-schemas.sql
+drop schema if exists app_public cascade;
+drop schema if exists app_private cascade;
+
+create extension if not exists citext with schema public;
+
+create schema app_public;
+create schema app_private;
+
+````
+```sql migrations/0020-sessions.sql
+create table app_private.sessions (
+  sid text primary key,
+  user_id uuid not null,
+  expires timestamptz not null default now() + interval '14 days'
+);
+````
+
+```sql migrations/0030-users.sql
+create table app_public.users (
+  user_id uuid primary key default gen_random_uuid(),
+  username citext not null,
+  bio text,
+  password_hash text not null unique,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table app_private.sessions
+  add constraint sessions_user_id_fkey (user_id) references app_public.users;
+
+create unique index users_username_idx on app_public.users (username);
+```
+
+```sql migrations/0040-posts.sql
+create table app_public.posts (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  body text not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+```
+
+</CH.Code>
+
+now that we have a `posts` table we can update our application code and store our posts in it
+
+```js server/index.mjs focus=4,6,8,29:38
+import express from 'express';
+import session from 'express-session';
+import morgan from 'morgan';
+import postgres from 'postgres';
+
+const { DATABASE_URL, NODE_ENV, PORT } = process.env;
+
+const sql = postgres(DATABASE_URL);
+
+const app = express();
+
+app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
+app.use(express.json({ strict: true }));
+app.use(express.urlencoded({ extended: false }));
+
+app.use(
+  session({
+    rolling: true,
+    saveUninitialized: false,
+    resave: false,
+    secret: process.env.SECRET,
+    cookie: {
+      maxAge: 1000 * 60 * 60 * 24 * 14,
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: 'auto',
+    },
+  }),
+);
+
+app.get('/posts', async (req, res) => {
+  res.json(await sql`select * from posts order by created_at desc`);
+});
+
+app.post('/posts', async (req, res) => {
+  const { name, body } = req.body;
+  req.session.user = { name };
+  await sql`insert into posts (name, body) values (${name}, ${body})`;
+  res.json(await sql`select * from posts order by created_at desc`);
+});
+
+app.get('/currentUser', (req, res) => {
+  res.json(req.session.user);
+});
+
+app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`));
+```
+
+the [Postgres](https://github.com/porsager/postgres) adapter we're using provides a [tagged template](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals#tagged_templates) to run our SQL queries.
+it's important to note the syntax for calling tagged template functions doesn't use parentheses, which allows the tagged function to send the query separately from the user input and avoid SQL injection.
+
+<div className="full-bleed">
+<CH.Scrollycoding className="wide-code" rows={35}>
+persist our sessions in postgres
+
+```js server/index.mjs focus=16:17,31
+import express from 'express';
+import session from 'express-session';
+import morgan from 'morgan';
+import postgres from 'postgres';
+
+const { DATABASE_URL, NODE_ENV, PORT } = process.env;
+
+const sql = postgres(DATABASE_URL);
+
+const app = express();
+
+app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
+app.use(express.json({ strict: true }));
+app.use(express.urlencoded({ extended: false }));
+
+class PgSessionStore extends session.Store {
+}
+
+app.use(
+  session({
+    rolling: true,
+    saveUninitialized: false,
+    resave: false,
+    secret: process.env.SECRET,
+    cookie: {
+      maxAge: 1000 * 60 * 60 * 24 * 14,
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: 'auto',
+    },
+    store: new PgSessionStore(),
+  }),
+);
+
+app.get('/posts', async (req, res) => {
+  res.json(await sql`select * from posts order by created_at desc`);
+});
+
+app.post('/posts', async (req, res) => {
+  const { name, body } = req.body;
+  req.session.user = { name };
+  await sql`insert into posts (name, body) values (${name}, ${body})`;
+  res.json(await sql`select * from posts order by created_at desc`);
+});
+
+app.get('/currentUser', (req, res) => {
+  res.json(req.session.user);
+});
+
+app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`));
+```
+
+---
+
+our store needs a method to `set` sessions
+
+```js server/index.mjs focus=17:26
+import express from 'express';
+import session from 'express-session';
+import morgan from 'morgan';
+import postgres from 'postgres';
+
+const { DATABASE_URL, NODE_ENV, PORT } = process.env;
+
+const sql = postgres(DATABASE_URL);
+
+const app = express();
+
+app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
+app.use(express.json({ strict: true }));
+app.use(express.urlencoded({ extended: false }));
+
+class PgSessionStore extends session.Store {
+  set(sid, session, callback) {
+    if (!session.user) return callback();
+    sql`
+      insert into sessions (sid, user_id, expires)
+        values (${sid}, ${session.user.userId}::uuid, ${Number(session.cookie.expires)})
+      on conflict (sid) do update set
+        user_id = $2,
+        expires = now() + interval '14 days'
+    `.then(() => callback(), callback);
+  }
+}
+
+app.use(
+  session({
+    rolling: true,
+    saveUninitialized: false,
+    resave: false,
+    secret: process.env.SECRET,
+    cookie: {
+      maxAge: 1000 * 60 * 60 * 24 * 14,
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: 'auto',
+    },
+    store: new PgSessionStore(),
+  }),
+);
+
+app.get('/posts', async (req, res) => {
+  res.json(await sql`select * from posts order by created_at desc`);
+});
+
+app.post('/posts', async (req, res) => {
+  const { name, body } = req.body;
+  req.session.user = { name };
+  await sql`insert into posts (name, body) values (${name}, ${body})`;
+  res.json(await sql`select * from posts order by created_at desc`);
+});
+
+app.get('/currentUser', (req, res) => {
+  res.json(req.session.user);
+})
+
+app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`));
+```
+
+---
+
+and a method to retrieve sessions
+
+```js server/index.mjs focus=28:36
+import express from 'express';
+import session from 'express-session';
+import morgan from 'morgan';
+import postgres from 'postgres';
+
+const { DATABASE_URL, NODE_ENV, PORT } = process.env;
+
+const sql = postgres(DATABASE_URL);
+
+const app = express();
+
+app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
+app.use(express.json({ strict: true }));
+app.use(express.urlencoded({ extended: false }));
+
+class PgSessionStore extends session.Store {
+  set(sid, session, callback) {
+    if (!session.user) return callback();
+    sql`
+      insert into sessions (sid, user_id, expires)
+        values (${sid}, ${session.user.userId}::uuid, ${Number(session.cookie.expires)})
+      on conflict (sid) do update set
+        user_id = $2,
+        expires = now() + interval '14 days'
+    `.then(() => callback(), callback);
+  }
+
+  get(sid, callback) {
+    sql`
+      select sid, user_id, expires
+      from sessions
+      where sid = ${sid} and expires > now()
+    `.then(([result]) => {
+      callback(null, result || null);
+    }, callback);
+  }
+}
+
+app.use(
+  session({
+    rolling: true,
+    saveUninitialized: false,
+    resave: false,
+    secret: process.env.SECRET,
+    cookie: {
+      maxAge: 1000 * 60 * 60 * 24 * 14,
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: 'auto',
+    },
+    store: new PgSessionStore(),
+  }),
+);
+
+app.get('/posts', async (req, res) => {
+  res.json(await sql`select * from posts order by created_at desc`);
+});
+
+app.post('/posts', async (req, res) => {
+  const { name, body } = req.body;
+  req.session.user = { name };
+  await sql`insert into posts (name, body) values (${name}, ${body})`;
+  res.json(await sql`select * from posts order by created_at desc`);
+});
+
+app.get('/currentUser', (req, res) => {
+  res.json(req.session.user);
+});
+
+app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`));
+```
+
+---
+
+a method to update the session expiration
+
+and a method to delete sessions
+
+```js server/index.mjs focus=38:52
+import express from 'express';
+import session from 'express-session';
+import morgan from 'morgan';
+import postgres from 'postgres';
+
+const { DATABASE_URL, NODE_ENV, PORT } = process.env;
+
+const sql = postgres(DATABASE_URL);
+
+const app = express();
+
+app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
+app.use(express.json({ strict: true }));
+app.use(express.urlencoded({ extended: false }));
+
+class PgSessionStore extends session.Store {
+  set(sid, session, callback) {
+    if (!session.user) return callback();
+    sql`
+      insert into sessions (sid, user_id, expires)
+        values (${sid}, ${session.user.userId}::uuid, ${Number(session.cookie.expires)})
+      on conflict (sid) do update set
+        user_id = $2,
+        expires = now() + interval '14 days'
+    `.then(() => callback(), callback);
+  }
+
+  get(sid, callback) {
+    sql`
+      select sid, user_id, expires
+      from sessions
+      where sid = ${sid} and expires > now()
+    `.then(([result]) => {
+      callback(null, result || null);
+    }, callback);
+  }
+
+  touch(sid, session, callback) {
+    sql`
+      update sessions
+      set
+        expires = now() + interval '14 days'
+      where sid = ${sid}
+    `.then(() => callback(), callback);
+  }
+
+  destroy(sid, callback) {
+    sql`
+      delete from sessions
+      where sid = ${sid}
+    `.then(() => callback(), callback);
+  }
+}
+
+app.use(
+  session({
+    rolling: true,
+    saveUninitialized: false,
+    resave: false,
+    secret: process.env.SECRET,
+    cookie: {
+      maxAge: 1000 * 60 * 60 * 24 * 14,
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: 'auto',
+    },
+    store: new PgSessionStore(),
+  }),
+);
+
+app.get('/posts', async (req, res) => {
+  res.json(await sql`select * from posts order by created_at desc`);
+});
+
+app.post('/posts', async (req, res) => {
+  const { name, body } = req.body;
+  req.session.user = { name };
+  await sql`insert into posts (name, body) values (${name}, ${body})`;
+  res.json(await sql`select * from posts order by created_at desc`);
+});
+
+app.get('/currentUser', (req, res) => {
+  res.json(req.session.user);
+});
+
+app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`));
+```
+
+</CH.Scrollycoding>
+</div>
+
+<Callout>
+    typically most apps would use an existing library like [connect-pg-simple](https://github.com/voxpelli/node-connect-pg-simple),
+    but as of writing one did not exist that uses the `postgres` adapter we are
+    using, and I also wanted to explicitly show what a `store` does under the hood
+</Callout>
+
+this is suddenly a lot of different code in one file, so let's break it up into some smaller files
+
+<CH.Code showExpandButton>
+```js server.mjs
+import express from 'express';
+import session from 'express-session';
+import morgan from 'morgan';
+import { PgSessionStore } from './PgSessionStore';
+import posts from './posts'
+
+const { NODE_ENV, PORT } = process.env;
+
+const app = express();
+
+app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
+app.use(express.json({ strict: true }));
+app.use(express.urlencoded({ extended: false }));
+
+app.use(session({
+  rolling: true,
+  saveUninitialized: false,
+  resave: false,
+  secret: process.env.SECRET,
+  cookie: {
+    maxAge: 1000 _ 60 _ 60 _ 24 _ 14,
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: 'auto',
+  },
+  store: new PgSessionStore(),
+}));
+
+app.use(posts);
+
+app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`));
+
+````
+
+```js PgSessionStore.mjs
+import session from 'express-session';
+import { sql } from './db';
+
+export class PgSessionStore extends session.Store {
+  set(sid, session, callback) {
+    if (!session.user) return callback();
+    sql`
+      insert into sessions (sid, user_id, expires)
+        values (${sid}, ${session.user.userId}::uuid, ${Number(session.cookie.expires)})
+      on conflict (sid) do update set
+        user_id = $2,
+        expires = now() + interval '14 days'
+    `.then(() => callback(), callback);
+  }
+
+  get(sid, callback) {
+    sql`
+      select sid, user_id, expires
+      from sessions
+      where sid = ${sid} and expires > now()
+    `.then(([result]) => {
+      callback(null, result || null)
+    }, callback);
+  }
+
+  touch(sid, session, callback) {
+    sql`
+      update sessions
+      set
+        expires = now() + interval '14 days'
+      where sid = ${sid}
+    `.then(() => callback(), callback);
+  }
+
+  destroy(sid, callback) {
+    sql`
+      delete from sessions
+      where sid = ${sid}
+    `.then(() => callback(), callback);
+  }
+}
+````
+
+```js posts.mjs
+import { Router } from 'express';
+
+const router = Router();
+
+router.get('/posts', async (req, res) => {
+  res.json(await sql`select * from posts order by created_at desc`);
+});
+
+router.post('/posts', async (req, res) => {
+  const { name, body } = req.body;
+  req.session.user = { name };
+  await sql`insert into posts (name, body) values (${name}, ${body})`;
+  res.json(await sql`select * from posts order by created_at desc`);
+});
+
+export default router;
+```
+
+```js db.mjs
+import postgres from 'postgres';
+
+export const sql = postgres(process.env.DATABASE_URL);
+```
+
+</CH.Code>
+
+## actually adding the auth routes
+
+```sh terminal
+npm i argon2
+```
+
+<div className="full-bleed">
+<CH.Scrollycoding className="wide-code" rows={40}>
+
+create router and add some simple validations
+
+```js auth.mjs
+import { Router } from 'express';
+import argon from 'argon2';
+import { sql } from './db';
+
+const argonOpts = {
+  type: argon.argon2id,
+  hashLength: 40,
+};
+
+const validate = {
+  username(value) {
+    if (typeof value !== 'string') return 'username must be a string'
+    // TODO: check for forbidden words
+  },
+  password(value) {
+    if (typeof value !== 'string') return 'password must be a string'
+    if (value.length < 8) return 'password must be at least 8 characters'
+    // TODO: check against zxcvbn
+  },
+};
+
+const router = Router();
+
+router.get('/currentUser', (req, res) => {
+  res.json({ data: { currentUser: req.session.user || null } });
+});
+
+export default router;
+```
+
+---
+
+add the `/register` route
+
+```js auth.mjs focus=28:41
+import { Router } from 'express';
+import argon from 'argon2';
+import { sql } from './db';
+
+const argonOpts = {
+  type: argon.argon2id,
+  hashLength: 40,
+};
+
+const validate = {
+  username(value) {
+    if (typeof value !== 'string') return 'username must be a string'
+    // TODO: check for forbidden words
+  },
+  password(value) {
+    if (typeof value !== 'string') return 'password must be a string'
+    if (value.length < 8) return 'password must be at least 8 characters'
+    // TODO: check against zxcvbn
+  },
+};
+
+const router = Router();
+
+router.get('/currentUser', (req, res) => {
+  res.json({ data: { currentUser: req.session.user || null } });
+});
+
+router.post('/register', (req, res) => {
+  if (req.session.user) return res.redirect('/');
+  const { username, password, confirmPassword } = req.body;
+
+  req.session.regenerate(async () => {
+    const [user] = await sql`
+      insert into app_public.users (username, password_hash)
+      values (${username}, ${await argon.hash(password, argonOpts)})
+      returning *
+    `;
+    req.session.user = user;
+    res.json({ data: { currentUser: user } });
+  });
+});
+
+export default router;
+```
+
+---
+
+add some basic field validations
+
+```js auth.mjs focus=32:45
+import { Router } from 'express';
+import argon from 'argon2';
+import { sql } from './db';
+
+const argonOpts = {
+  type: argon.argon2id,
+  hashLength: 40,
+};
+
+const validate = {
+  username(value) {
+    if (typeof value !== 'string') return 'username must be a string'
+    // TODO: check for forbidden words
+  },
+  password(value) {
+    if (typeof value !== 'string') return 'password must be a string'
+    if (value.length < 8) return 'password must be at least 8 characters'
+    // TODO: check against zxcvbn
+  },
+};
+
+const router = Router();
+
+router.get('/currentUser', (req, res) => {
+  res.json({ data: { currentUser: req.session.user || null } });
+});
+
+router.post('/register', (req, res) => {
+  if (req.session.user) return res.redirect('/');
+  const { username, password, confirmPassword } = req.body;
+
+  const fieldErrors = {};
+  if (!username) fieldErrors.username = 'missing username';
+  const validUsername = validate.username(username);
+  if (!validUsername) fieldErrors.username = validUsername;
+
+  if (!password) fieldErrors.password = 'missing password';
+  if (!confirmPassword) fieldErrors.confirmPassword = 'please re-type your password';
+  if (password !== confirmPassword) fieldErrors.confirmPassword = 'passwords dont match';
+  const validPassword = validate.password(password);
+  if (!validPassword) fieldErrors.password = validPassword;
+
+  if (Object.keys(fieldErrors).some(Boolean)) {
+    return res.status(422).json({ error: { fieldErrors } });
+  }
+
+  req.session.regenerate(async () => {
+    const [user] = await sql`
+      insert into app_public.users (username, password_hash)
+      values (${username}, ${await argon.hash(password, argonOpts)})
+      returning *
+    `;
+    req.session.user = user;
+    res.json({ data: { currentUser: user } });
+  });
+});
+
+export default router;
+```
+
+---
+
+some error handling on conflicting usernames
+
+```js auth.mjs focus=49:69
+import { Router } from 'express';
+import argon from 'argon2';
+import { PostgresError } from 'postgres';
+import { sql } from './db';
+
+const argonOpts = {
+  type: argon.argon2id,
+  hashLength: 40,
+};
+
+const validate = {
+  username(value) {
+    if (typeof value !== 'string') return 'username must be a string'
+    // TODO: check for forbidden words
+  },
+  password(value) {
+    if (typeof value !== 'string') return 'password must be a string'
+    if (value.length < 8) return 'password must be at least 8 characters'
+    // TODO: check against zxcvbn
+  },
+};
+
+const router = Router();
+
+router.get('/currentUser', (req, res) => {
+  res.json({ data: { currentUser: req.session.user || null } });
+});
+
+router.post('/register', (req, res) => {
+  if (req.session.user) return res.redirect('/');
+  const { username, password, confirmPassword } = req.body;
+
+  const fieldErrors = {};
+  if (!username) fieldErrors.username = 'missing username';
+  const validUsername = validate.username(username);
+  if (!validUsername) fieldErrors.username = validUsername;
+
+  if (!password) fieldErrors.password = 'missing password';
+  if (!confirmPassword) fieldErrors.confirmPassword = 'please re-type your password';
+  if (password !== confirmPassword) fieldErrors.confirmPassword = 'passwords dont match';
+  const validPassword = validate.password(password);
+  if (!validPassword) fieldErrors.password = validPassword;
+
+  if (Object.keys(fieldErrors).some(Boolean)) {
+    return res.status(422).json({ error: { fieldErrors } });
+  }
+
+  req.session.regenerate(async () => {
+    try {
+      const [user] = await sql`
+        insert into app_public.users (username, password_hash)
+        values (${username}, ${await argon.hash(password, argonOpts)})
+        returning *
+      `;
+      req.session.user = user;
+      res.json({ data: { currentUser: user } });
+    } catch (e) {
+      if (
+        e instanceof PostgresError &&
+        e.code === '23505' &&
+        e.constraint_name === 'users_username_key'
+      ) {
+        return res.status(422).json({
+          error: { fieldErrors: { username: 'username already taken' } },
+        });
+      }
+      console.error(e);
+      res.status(500).json({ error: 'there was an error processing your request' });
+    }
+  });
+});
+
+export default router;
+```
+
+---
+
+now we can start on the login route
+
+```js auth.mjs focus=73:103
+import { Router } from 'express';
+import argon from 'argon2';
+import { PostgresError } from 'postgres';
+import { sql } from './db';
+
+const argonOpts = {
+  type: argon.argon2id,
+  hashLength: 40,
+};
+
+const validate = {
+  username(value) {
+    if (typeof value !== 'string') return 'username must be a string'
+    // TODO: check for forbidden words
+  },
+  password(value) {
+    if (typeof value !== 'string') return 'password must be a string'
+    if (value.length < 8) return 'password must be at least 8 characters'
+    // TODO: check against zxcvbn
+  },
+};
+
+const router = Router();
+
+router.get('/currentUser', (req, res) => {
+  res.json({ data: { currentUser: req.session.user || null } });
+});
+
+router.post('/register', (req, res) => {
+  if (req.session.user) return res.redirect('/');
+  const { username, password, confirmPassword } = req.body;
+
+  const fieldErrors = {};
+  if (!username) fieldErrors.username = 'missing username';
+  const validUsername = validate.username(username);
+  if (!validUsername) fieldErrors.username = validUsername;
+
+  if (!password) fieldErrors.password = 'missing password';
+  if (!confirmPassword) fieldErrors.confirmPassword = 'please re-type your password';
+  if (password !== confirmPassword) fieldErrors.confirmPassword = 'passwords dont match';
+  const validPassword = validate.password(password);
+  if (!validPassword) fieldErrors.password = validPassword;
+
+  if (Object.keys(fieldErrors).some(Boolean)) {
+    return res.status(422).json({ error: { fieldErrors } });
+  }
+
+  req.session.regenerate(async () => {
+    try {
+      const [user] = await sql`
+        insert into app_public.users (username, password_hash)
+        values (${username}, ${await argon.hash(password, argonOpts)})
+        returning *
+      `;
+      req.session.user = user;
+      res.json({ data: { currentUser: user } });
+    } catch (e) {
+      if (
+        e instanceof PostgresError &&
+        e.code === '23505' &&
+        e.constraint_name === 'users_username_key'
+      ) {
+        return res.status(422).json({
+          error: { fieldErrors: { username: 'username already taken' } },
+        });
+      }
+      console.error(e);
+      res.status(500).json({ error: 'there was an error processing your request' });
+    }
+  });
+});
+
+router.post('/login', (req, res) => {
+  if (req.session.user) return res.redirect('/');
+  const { username, password } = req.body;
+
+  req.session.regenerate(async () => {
+    try {
+      const [userWithPass] = await sql`
+        select user_id, username, password_hash
+        from app_public.users
+        where username = ${username}
+      `;
+
+      if (!userWithPass) {
+        return res.status(401).json({ error: { formErrors: 'Invalid username or password' } });
+      }
+
+      const { password_hash, ...user } = userWithPass;
+      const matches = await argon.verify(password_hash, password, argonOpts);
+
+      if (!matches) {
+        return res.status(401).json({ error: { formErrors: 'Invalid username or password' } });
+      }
+
+      req.session.user = user;
+      req.session.save(() => res.json({ data: { currentUser: user } }));
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: 'there was an error processing your request' });
+    }
+  });
+});
+
+export default router;
+```
+
+---
+
+and again with some basic validations
+
+plz use [`zod`](https://zod.dev)
+
+```js auth.mjs focus=77:82
+import { Router } from 'express';
+import argon from 'argon2';
+import { PostgresError } from 'postgres';
+import { sql } from './db';
+
+const argonOpts = {
+  type: argon.argon2id,
+  hashLength: 40,
+};
+
+const validate = {
+  username(value) {
+    if (typeof value !== 'string') return 'username must be a string'
+    // TODO: check for forbidden words
+  },
+  password(value) {
+    if (typeof value !== 'string') return 'password must be a string'
+    if (value.length < 8) return 'password must be at least 8 characters'
+    // TODO: check against zxcvbn
+  },
+};
+
+const router = Router();
+
+router.get('/currentUser', (req, res) => {
+  res.json({ data: { currentUser: req.session.user || null } });
+});
+
+router.post('/register', (req, res) => {
+  if (req.session.user) return res.redirect('/');
+  const { username, password, confirmPassword } = req.body;
+
+  const fieldErrors = {};
+  if (!username) fieldErrors.username = 'missing username';
+  const validUsername = validate.username(username);
+  if (!validUsername) fieldErrors.username = validUsername;
+
+  if (!password) fieldErrors.password = 'missing password';
+  if (!confirmPassword) fieldErrors.confirmPassword = 'please re-type your password';
+  if (password !== confirmPassword) fieldErrors.confirmPassword = 'passwords dont match';
+  const validPassword = validate.password(password);
+  if (!validPassword) fieldErrors.password = validPassword;
+
+  if (Object.keys(fieldErrors).some(Boolean)) {
+    return res.status(422).json({ error: { fieldErrors } });
+  }
+
+  req.session.regenerate(async () => {
+    try {
+      const [user] = await sql`
+        insert into app_public.users (username, password_hash)
+        values (${username}, ${await argon.hash(password, argonOpts)})
+        returning *
+      `;
+      req.session.user = user;
+      res.json({ data: { currentUser: user } });
+    } catch (e) {
+      if (
+        e instanceof PostgresError &&
+        e.code === '23505' &&
+        e.constraint_name === 'users_username_key'
+      ) {
+        return res.status(422).json({
+          error: { fieldErrors: { username: 'username already taken' } },
+        });
+      }
+      console.error(e);
+      res.status(500).json({ error: 'there was an error processing your request' });
+    }
+  });
+});
+
+router.post('/login', (req, res) => {
+  if (req.session.user) return res.redirect('/');
+  const { username, password } = req.body;
+
+  const fieldErrors = {};
+  if (!username) fieldErrors.username = 'missing username';
+  if (!password) fieldErrors.password = 'missing password';
+  if (Object.keys(fieldErrors).some(Boolean)) {
+    return res.status(422).json({ error: { fieldErrors } });
+  }
+
+  req.session.regenerate(async () => {
+    try {
+      const [userWithPass] = await sql`
+        select user_id, username, password_hash
+        from app_public.users
+        where username = ${username}
+      `;
+
+      if (!userWithPass) {
+        return res.status(401).json({ error: { formErrors: 'Invalid username or password' } });
+      }
+
+      const { password_hash, ...user } = userWithPass;
+      const matches = await argon.verify(password_hash, password, argonOpts);
+
+      if (!matches) {
+        return res.status(401).json({ error: { formErrors: 'Invalid username or password' } });
+      }
+
+      req.session.user = user;
+      req.session.save(() => res.json({ data: { currentUser: user } }));
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: 'there was an error processing your request' });
+    }
+  });
+});
+
+export default router;
+```
+
+---
+
+the last piece is the logout route
+
+```js auth.mjs focus=112:121
+import { Router } from 'express';
+import argon from 'argon2';
+import { PostgresError } from 'postgres';
+import { sql } from './db';
+
+const argonOpts = {
+  type: argon.argon2id,
+  hashLength: 40,
+};
+
+const validate = {
+  username(value) {
+    if (typeof value !== 'string') return 'username must be a string'
+    // TODO: check for forbidden words
+  },
+  password(value) {
+    if (typeof value !== 'string') return 'password must be a string'
+    if (value.length < 8) return 'password must be at least 8 characters'
+    // TODO: check against zxcvbn
+  },
+};
+
+const router = Router();
+
+router.get('/currentUser', (req, res) => {
+  res.json({ data: { currentUser: req.session.user || null } });
+});
+
+router.post('/register', (req, res) => {
+  if (req.session.user) return res.redirect('/');
+  const { username, password, confirmPassword } = req.body;
+  const fieldErrors = {};
+
+  if (!username) fieldErrors.username = 'missing username';
+  const validUsername = validate.username(username);
+  if (!validUsername) fieldErrors.username = validUsername;
+
+  if (!password) fieldErrors.password = 'missing password';
+  if (!confirmPassword) fieldErrors.confirmPassword = 'please re-type your password';
+  if (password !== confirmPassword) fieldErrors.confirmPassword = 'passwords dont match';
+  const validPassword = validate.password(password);
+  if (!validPassword) fieldErrors.password = validPassword;
+
+  if (Object.keys(fieldErrors).some(Boolean)) {
+    return res.status(422).json({ error: { fieldErrors } });
+  }
+
+  req.session.regenerate(async () => {
+    try {
+      const [user] = await sql`
+        insert into app_public.users (username, password_hash)
+        values (${username}, ${await argon.hash(password, argonOpts)})
+        returning *
+      `;
+      req.session.user = user;
+      res.json({ data: { currentUser: user } });
+    } catch (e) {
+      if (
+        e instanceof PostgresError &&
+        e.code === '23505' &&
+        e.constraint_name === 'users_username_key'
+      ) {
+        return res.status(422).json({
+          error: { fieldErrors: { username: 'username already taken' } },
+        });
+      }
+      console.error(e);
+      res.status(500).json({ error: 'there was an error processing your request' });
+    }
+  });
+});
+
+router.post('/login', (req, res) => {
+  if (req.session.user) return res.redirect('/');
+  const { username, password } = req.body;
+  const fieldErrors = {};
+  if (!username) fieldErrors.username = 'missing username';
+  if (!password) fieldErrors.password = 'missing password';
+  if (Object.keys(fieldErrors).some(Boolean)) {
+    return res.status(422).json({ error: { fieldErrors } });
+  }
+
+  req.session.regenerate(async () => {
+    try {
+      const [userWithPass] = await sql`
+        select user_id, username, password_hash
+        from app_public.users
+        where username = ${username}
+      `;
+
+      if (!userWithPass) {
+        return res.status(401).json({ error: { formErrors: 'Invalid username or password' } });
+      }
+
+      const { password_hash, ...user } = userWithPass;
+      const matches = await argon.verify(password_hash, password, argonOpts);
+
+      if (!matches) {
+        return res.status(401).json({ error: { formErrors: 'Invalid username or password' } });
+      }
+
+      req.session.user = user;
+      req.session.save(() => res.json({ data: { currentUser: user } }));
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: 'there was an error processing your request' });
+    }
+  });
+});
+
+router.post('/logout', (req, res, next) => {
+  req.session.user = null;
+  req.session.save(err => {
+    if (err) next(err);
+    req.session.regenerate(err => {
+      if (err) next(err);
+      res.redirect('/');
+    });
+  });
+});
+
+export default router;
+```
+
+---
+
+don't forget to add the new auth router to the express instance
+
+```js server.mjs focus=6,33
+import express from 'express';
+import session from 'express-session';
+import morgan from 'morgan';
+import { PgSessionStore } from './PgSessionStore';
+import posts from './posts';
+import auth from './auth'
+
+const { NODE_ENV, PORT } = process.env;
+
+const app = express();
+
+app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
+app.use(express.json({ strict: true }));
+app.use(express.urlencoded({ extended: false }));
+
+app.use(
+  session({
+    rolling: true,
+    saveUninitialized: false,
+    resave: false,
+    secret: process.env.SECRET,
+    cookie: {
+      maxAge: 1000 * 60 * 60 * 24 * 14,
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: 'auto',
+    },
+    store: new PgSessionStore(),
+  }),
+);
+
+app.use(posts);
+app.use(auth);
+
+app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`));
+```
+
+</CH.Scrollycoding>
+</div>
+
+## authorization
+
+so far a user can register, login, logout, and make post, but there are no restrictions on a user's name, so anyone can post as any user.
+
+in order to leverage Postgres Row-Level-Security we need a `visitor` role with limited permissions, and an `authenticator` role that we can log-in to
+
+<CH.Code showExpandButton rows={15}>
+```js scripts/db-setup.mjs focus=86:95
+// @ts-check
+import postgres from 'postgres';
+import inquirer from 'inquirer';
+
+const {
+  DATABASE_OWNER,
+  DATABASE_OWNER_PASSWORD,
+  DATABASE_NAME,
+  ROOT_DATABASE_URL,
+  DATABASE_VISITOR,
+  DATABASE_AUTHENTICATOR,
+  DATABASE_AUTHENTICATOR_PASSWORD
+} = process.env;
+
+const RECONNECT_BASE_DELAY = 100;
+const RECONNECT_MAX_DELAY = 30000;
+
+/** @param {number | undefined} ms */
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+if (!ROOT_DATABASE_URL) {
+  console.error('ROOT_DATABASE_URL is not set');
+  process.exit(1);
+}
+
+const sql = postgres(ROOT_DATABASE_URL);
+
+async function main() {
+  let attempts = 0;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    try {
+      await sql`select true as "Connection test"`;
+      break;
+    } catch (e) {
+      if (e.code === '28P01') throw e;
+      attempts++;
+      if (attempts <= 30) {
+        console.log(`Database is not ready yet (attempt ${attempts}): ${e.message}`);
+      } else {
+        console.log(`Database never came up, aborting :(`);
+        process.exit(1);
+      }
+      const delay = Math.floor(
+        Math.min(
+          RECONNECT_MAX_DELAY,
+          RECONNECT_BASE_DELAY * Math.random() * 2 ** attempts,
+        ),
+      );
+      await sleep(delay);
+    }
+  }
+
+  console.log(`DROP DATABASE ${DATABASE_NAME}`);
+  console.log(`DROP ROLE ${DATABASE_OWNER}`);
+
+  const { confirm } = process.env.NOCONFIRM
+    ? { confirm: true }
+    : await inquirer.prompt([
+      {
+        name: 'confirm',
+        message: 'press y to continue:',
+        type: 'confirm',
+        prefix: '',
+      },
+  ]);
+  if (!confirm) process.exit();
+
+  try {
+    await sql`drop database if exists ${sql.unsafe(DATABASE_NAME)}`;
+    await sql`drop role if exists ${sql.unsafe(DATABASE_OWNER)}`;
+    await sql`create database ${sql.unsafe(DATABASE_NAME)}`;
+    console.log(`CREATE DATABASE ${DATABASE_NAME}`);
+
+    await sql.unsafe`
+      create role ${DATABASE_OWNER} with login
+      password '${DATABASE_OWNER_PASSWORD}' noinherit`;
+    console.log(`CREATE ROLE ${DATABASE_OWNER}`);
+
+    await sql.unsafe`
+      grant all privileges on database ${DATABASE_NAME}
+      to ${DATABASE_OWNER}`;
+    console.log(`GRANT ${DATABASE_OWNER}`);
+
+    await sql.unsafe`
+      create role ${DATABASE_AUTHENTICATOR} with login
+      password '${DATABASE_AUTHENTICATOR_PASSWORD}' noinherit`;
+    console.log(`CREATE ROLE ${DATABASE_AUTHENTICATOR}`);
+
+    await sql.unsafe`create role ${DATABASE_VISITOR}`;
+    console.log(`CREATE ROLE ${DATABASE_VISITOR}`);
+
+    await sql.unsafe`grant ${DATABASE_VISITOR} to ${DATABASE_AUTHENTICATOR}`;
+    console.log(`GRANT ${DATABASE_VISITOR} TO ${DATABASE_AUTHENTICATOR}`);
+
+  } catch (e) {
+    console.error(e);
+  } finally {
+    await sql.end();
+  }
+}
+main();
+
+````
+
+```js scripts/generate-dotenv.mjs focus=168:171
+// @ts-check
+import path from 'node:path';
+import fs from 'node:fs/promises';
+import crypto from 'node:crypto';
+import dotenv from 'dotenv';
+import inquirer from 'inquirer';
+
+const DOTENV_PATH = path.resolve('.env');
+
+/** validates database name
+ * @param {string} str database name
+ * @returns {true | string} returns true or an error
+ */
+function validName(str) {
+  if (str.length < 4) return 'must be at least 4 characters';
+  if (str !== str.toLowerCase()) return 'must be lowercase';
+  return true;
+}
+
+/** generates a password
+ * @param {number} length password length
+ * @param {BufferEncoding} type password encoding
+ * @returns {string} generated password
+ */
+function generatePassword(length, type = 'base64') {
+  return crypto.randomBytes(length).toString(type).replace(/\W/g, '_').toLowerCase();
+}
+
+async function readDotenv() {
+  try {
+    return dotenv.parse(await fs.readFile(DOTENV_PATH, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * @param {null | Record<string,string | undefined>} config current environment object
+ * @returns {Promise<void>} void
+ */
+async function createConfig(config) {
+  const packageJson = JSON.parse(await fs.readFile('./package.json', 'utf8'));
+  const packageName = packageJson.name.replace(/\W/g, '_').replace(/__+/g, '').replace(/^_/, '');
+
+  let PASSWORDS = {
+    ROOT_DATABASE_PASSWORD: config?.ROOT_DATABASE_PASSWORD,
+    DATABASE_OWNER_PASSWORD: config?.DATABASE_OWNER_PASSWORD,
+    DATABASE_AUTHENTICATOR_PASSWORD: config?.DATABASE_AUTHENTICATOR_PASSWORD,
+    SECRET: config?.SECRET,
+  };
+
+  if (!Object.values(PASSWORDS).every(Boolean)) {
+    PASSWORDS = (
+      await inquirer.prompt({
+        name: 'genpwd',
+        message: 'generate passwords?',
+        type: 'confirm',
+        prefix: '',
+      })
+    ).genpwd
+      ? {
+          ROOT_DATABASE_PASSWORD: config?.ROOT_DATABASE_PASSWORD ?? generatePassword(18),
+          DATABASE_OWNER_PASSWORD: config?.DATABASE_OWNER_PASSWORD ?? generatePassword(18),
+          DATABASE_AUTHENTICATOR_PASSWORD: config?.DATABASE_AUTHENTICATOR_PASSWORD ?? generatePassword(18),
+          SECRET: config?.SECRET ?? generatePassword(32, 'hex'),
+        }
+      : await inquirer.prompt(
+          [
+            {
+              name: 'ROOT_DATABASE_PASSWORD',
+              default: () => generatePassword(18),
+              prefix: '',
+            },
+            {
+              name: 'DATABASE_OWNER_PASSWORD',
+              default: () => generatePassword(18),
+              prefix: '',
+            },
+            {
+              name: 'DATABASE_AUTHENTICATOR_PASSWORD',
+              default: () => generatePassword(18),
+              prefix: '',
+            },
+            {
+              name: 'SECRET',
+              default: () => generatePassword(32, 'hex'),
+              prefix: '',
+            },
+          ],
+          PASSWORDS,
+        );
+  }
+
+  const envFile = Object.entries({
+    ...config,
+    NODE_ENV: 'development',
+    ROOT_DATABASE_USER: ROOT_DATABASE_USER,
+    ROOT_DATABASE_PASSWORD: PASSWORDS.ROOT_DATABASE_PASSWORD,
+    ROOT_DATABASE_URL: `postgres://${ROOT_DATABASE_USER}:${PASSWORDS.ROOT_DATABASE_PASSWORD}@${DATABASE_HOST}/template1`,
+    DATABASE_HOST: DATABASE_HOST,
+    DATABASE_NAME: DATABASE_NAME,
+    DATABASE_OWNER: DATABASE_OWNER,
+    DATABASE_OWNER_PASSWORD: PASSWORDS.DATABASE_OWNER_PASSWORD,
+    DATABASE_URL: `postgres://${DATABASE_OWNER}:${PASSWORDS.DATABASE_OWNER_PASSWORD}@${DATABASE_HOST}/${DATABASE_NAME}`,
+    DATABASE_AUTHENTICATOR: DATABASE_AUTHENTICATOR,
+    DATABASE_AUTHENTICATOR_PASSWORD: PASSWORDS.DATABASE_AUTHENTICATOR_PASSWORD,
+    AUTH_DATABASE_URL: `postgres://${DATABASE_AUTHENTICATOR}:${PASSWORDS.DATABASE_AUTHENTICATOR_PASSWORD}@${DATABASE_HOST}/${DATABASE_NAME}`,
+    DATABASE_VISITOR: DATABASE_VISITOR,
+    SECRET: PASSWORDS.SECRET,
+    PORT,
+    ROOT_URL,
+  })
+    .map(([k, v]) => `${k}=${v}`)
+    .join('\n')
+    .concat('\n');
+
+  await fs.writeFile(DOTENV_PATH, envFile, 'utf8');
+  console.log(`.env file ${config ? 'updated' : 'created'}`);
+}
+
+async function main() {
+  createConfig(await readDotenv());
+}
+
+main();
+
+````
+
+```js db.mjs bg=5
+import postgres from 'postgres';
+
+export const sql = postgres(process.env.DATABASE_URL);
+
+export const authenticator = postgres(process.env.AUTH_DATABASE_URL);
+```
+
+</CH.Code>
+
+<Callout>
+the rest of this article is still missing explanations and context, but the code is complete and should work as expected
+
+check back later for more details!
+</Callout>
+
+<div className="full-bleed">
+<CH.Scrollycoding className="wide-code">
+
+```sql migrations/0010-setup-schemas.sql
+drop schema if exists app_public cascade;
+drop schema if exists app_private cascade;
+
+create extension if not exists citext with schema public;
+
+revoke all on schema public from public;
+
+alter default privileges revoke all on sequences from public;
+alter default privileges revoke all on functions from public;
+
+grant all on schema public to :DATABASE_OWNER;
+
+create schema app_public;
+create schema app_private;
+
+grant usage on schema public, app_public, app_hidden to :DATABASE_VISITOR;
+
+alter default privileges in schema public, app_public
+grant usage, select on sequences to :DATABASE_VISITOR;
+
+alter default privileges in schema public, app_public
+grant execute on functions to :DATABASE_VISITOR;
+
+create function app_private.tg__timestamps() returns trigger as $$
+begin
+  NEW.created_at = (case when TG_OP = 'INSERT' then NOW() else OLD.created_at end);
+  NEW.updated_at = (case when TG_OP = 'UPDATE' and OLD.updated_at >= NOW() then OLD.updated_at + interval '1 millisecond' else NOW() end);
+  return NEW;
+end;
+$$ language plpgsql volatile set search_path to pg_catalog, public, pg_temp;
+```
+
+---
+
+```sql migrations/0020-sessions.sql focus=7:14
+create table app_private.sessions (
+  sid text primary key,
+  user_id uuid not null,
+  expires timestamptz not null default now() + interval '14 days'
+);
+
+create function app_public.current_session_id() returns text as $$
+  select nullif(pg_catalog.current_setting('my.session_id', true), '');
+$$ language sql stable;
+
+create function app_public.current_user_id() returns uuid as $$
+  select user_id from app_private.sessions
+  where uuid = app_public.current_session_id();
+$$ language sql stable security definer set search_path to pg_catalog, public, pg_temp;
+```
+
+---
+
+```sql migrations/0030-users.sql focus=5,14:17
+create table app_public.users (
+  user_id uuid primary key default gen_random_uuid(),
+  username citext not null,
+  bio text,
+  -- removed the password_hash column
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table app_private.sessions
+  add constraint sessions_user_id_fkey (user_id) references app_public.users;
+
+create unique index users_username_idx on app_public.users (username);
+
+create table app_private.user_secrets (
+  user_id uuid primary key references app_public.users on delete cascade,
+  password_hash text not null unique
+);
+```
+
+---
+
+```sql migrations/0040-posts.sql mark=1,4,6
+create type app_public.post_visibility as enum ('public', 'private');
+create table app_public.posts (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references app_public.users on delete cascade,
+  body text not null,
+  visibility app_public.post_visibility not null default 'public',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+```
+
+---
+
+```js withAuthContext.mjs
+import { authenticator as sql } from "./sql"
+
+const role = process.env.DATABASE_VISITOR!
+
+export function withAuthContext(req, cb) {
+  const sessionId = req.sessionID
+  return sql.begin(async sql => {
+    await sql`
+      select
+        set_config('role', ${role}, false),
+        set_config('my.session_id', ${sessionId}, true)
+    `
+    return await cb(sql)
+  })
+}
+```
+
+---
+
+```js posts.mjs focus=2,7:9,14:19
+import { Router } from 'express';
+import { withAuthContext } from './withAuthContext';
+
+const router = Router();
+
+router.get('/posts', (req, res) => {
+  withAuthContext(req, async sql => {
+    res.json(await sql`select * from posts order by created_at desc`);
+  })
+})
+
+router.post('/posts', (req, res) => {
+  const { body, visibility } = req.body;
+  withAuthContext(req, async sql => {
+    await sql`
+      insert into posts (name, visibility)
+      values (${name}, ${visibility ?? sql.unsafe('default')})`;
+    res.json(await sql`select * from posts order by created_at desc`);
+  })
+})
+
+export default router
+```
+
+---
+
+```sql migrations/0030-users.sql focus=14:42
+create table app_public.users (
+  user_id uuid primary key default gen_random_uuid(),
+  username citext unique not null,
+  bio text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table app_private.sessions
+  add constraint sessions_user_id_fkey (user_id) references app_public.users;
+
+create unique index users_username_idx on app_public.users (username);
+
+alter table app_public.users enable row level security;
+
+create policy select_all
+  on app_public.users
+  for select using (true);
+
+create policy update_self
+  on app_public.users
+  for update using (user_id = app_public.current_user_id());
+
+grant select
+  on app_public.users
+  to :DATABASE_VISITOR;
+
+grant
+  update (username, bio)
+  on app_public.users
+  to :DATABASE_VISITOR;
+
+alter table app_private.sessions
+  add constraint sessions_user_id_fkey
+  foreign key ("user_id") references app_public.users on delete cascade;
+
+create table app_private.user_secrets (
+  user_id uuid primary key references app_public.users on delete cascade,
+  password_hash text not null unique
+);
+
+alter table app_private.user_secrets enable row level security;
+```
+
+---
+
+```sql migrations/0040-posts.sql mark=4[25:60],11:36
+create type app_public.post_visibility as enum ('public', 'private');
+create table app_public.posts (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default app_public.current_user_id() references app_public.users on delete cascade,
+  body text not null,
+  visibility app_public.post_visibility not null default 'public',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table app_public.posts enable row level security;
+
+create policy select_own_and_public on app_public.posts
+  for select using (user_id = app_public.current_user_id() or visibility = 'public');
+
+create policy insert_own on app_public.posts
+  for insert with check (user_id = app_public.current_user_id());
+
+create policy update_own on app_public.posts
+  for update using (user_id = app_public.current_user_id());
+
+create policy delete_own on app_public.posts
+  for delete using (user_id = app_public.current_user_id());
+
+create policy all_as_admin on app_public.posts
+  for all using (exists (
+    select 1 from app_public.users
+    where user_id = app_public.current_user_id() and role = 'admin'
+  ));
+
+grant
+  select,
+  insert (body, visibility),
+  update (body, visibility),
+  delete
+  on app_public.posts to :DATABASE_VISITOR;
+```
+
+</CH.Scrollycoding>
+</div>
+
+<Callout>
+  [PostGraphile](https://postgraphile.org) is a huge inspiration for this post and some of the ideas
+  and code are directly lifted from and the [graphile-starter](https://github.com/graphile/starter).
+  Big thanks to Benjie for the incredible work he does on the Graphile suite!
+</Callout>

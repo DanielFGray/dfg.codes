@@ -1,11 +1,12 @@
-import { ArticleLayout } from '~/components/ArticleLayout'
+import { ArticleLayout } from '~/components/Articles'
 
 export const meta = {
   title: 'Build Your Own Comment Section',
   category: 'computers',
-  tags: ['sql', 'typescript', 'supabase', 'programming'],
+  tags: ['sql', 'typescript', 'postgres', 'nodejs', 'react', 'supabase', 'programming'],
   date: '2022-06-02',
-  description: 'How to build your own threaded comment section using Supabase and Postgres functions',
+  description:
+    'How to build your own threaded comment section using Supabase and Postgres functions',
 }
 
 export default props => <ArticleLayout meta={meta} {...props} />
@@ -16,15 +17,15 @@ I'm assuming you are fairly familiar with Postgres so I won't dive too far into 
 
 ## Table Schemas and Policies
 
-  First let's create a table to store user data:
-  
-  ```sql
-  create table profiles (
-    user_id uuid not null primary key references auth.users,
-    username citext unique check (length(username) between 3 and 60),
-    avatar_url text check (avatar_url ~ '^https?://\S+$'),
-  );
-  ```
+First let's create a table to store user data:
+
+```sql
+create table profiles (
+  user_id uuid not null primary key references auth.users,
+  username citext unique check (length(username) between 3 and 60),
+  avatar_url text check (avatar_url ~ '^https?://\S+$'),
+);
+```
 
 Now the table to store `comments`:
 
@@ -269,9 +270,7 @@ function useCommentsBySlug(slug: string): {
   const [error, setError] = useState<null | Error>(null)
   useEffect(() => {
     setLoading(true)
-    fetch(
-      `https://${process.env.REACT_APP_SUPABASE_API}/rest/v1/threaded_comments?slug=${slug}`
-    )
+    fetch(`https://${process.env.REACT_APP_SUPABASE_API}/rest/v1/threaded_comments?slug=${slug}`)
       .then(res => res.json())
       .then(res => {
         setComments(res)
@@ -298,12 +297,15 @@ import { createClient } from '@supabase/supabase-js'
 const supabase = createClient(REACT_APP_SUPABASE_API, REACT_APP_SUPABASE_KEY)
 
 function useCommentsBySlug(slug: string) {
-  return useQuery(['comments', slug], async () => {
-    const { data, error } = await supabase.rpc<Comment>('threaded_comments', {
-      slug,
-    })
-    if (error) throw error
-    return data
+  return useQuery({
+    queryKey: ['comments', slug],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc<Comment>('threaded_comments', {
+        slug,
+      })
+      if (error) throw error
+      return data
+    },
   })
 }
 ```
@@ -333,7 +335,7 @@ function useRealTimeComments(slug) {
     const subscription = supabase
       .from(`comments:slug=eq.${slug}`)
       .on('*', _payload => {
-        queryClient.invalidateQueries(['comments', slug])
+        queryClient.invalidateQueries({ queryKey: ['comments', slug] })
       })
       .subscribe()
     return () => {
@@ -344,12 +346,15 @@ function useRealTimeComments(slug) {
 
 function useCommentsBySlug(slug: string) {
   useRealTimeComments(slug)
-  return useQuery(['comments', slug], async () => {
-    const { data, error } = await supabase.rpc<Comment>('threaded_comments', {
-      slug,
-    })
-    if (error) throw error
-    return data
+  return useQuery({
+    queryKey: ['comments', slug],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc<Comment>('threaded_comments', {
+        slug,
+      })
+      if (error) throw error
+      return data
+    },
   })
 }
 ```
@@ -367,9 +372,9 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import type { Session, UserCredentials } from '@supabase/supabase-js'
 
 export function useSignIn() {
-  return useMutation(
-    ['signin'],
-    async ({
+  return useMutation({
+    mutationKey: ['signin'],
+    mutationFn: async ({
       scopes,
       captchaToken,
       shouldCreateUser,
@@ -385,14 +390,12 @@ export function useSignIn() {
         scopes,
         captchaToken,
         shouldCreateUser,
-        redirectTo: (process.env.NEXT_PUBLIC_URL ?? '').concat(
-          redirectTo ?? '/'
-        ),
+        redirectTo: (process.env.NEXT_PUBLIC_URL ?? '').concat(redirectTo ?? '/'),
       })
       if (error) throw error
       return { user, session }
-    }
-  )
+    },
+  })
 }
 ```
 
@@ -404,11 +407,9 @@ function useAuth(): Session | null {
   useEffect(() => {
     setSession(supabase.auth.session())
 
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session)
-      }
-    )
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+    })
     return () => {
       listener?.unsubscribe()
     }
@@ -422,43 +423,37 @@ Now we can finally make hooks that create and delete comments:
 ```typescript
 function useCreateComment() {
   const queryClient = useQueryClient()
-  return useMutation(
-    ['new_comment'],
-    async (values: {
-      slug: string
-      body: string
-      parent_id: number | null
-    }) => {
+  return useMutation({
+    mutaitonKey: ['new_comment'],
+    mutationFn: async (values: { slug: string; body: string; parent_id: number | null }) => {
       const { data, error } = await supabase.from('comments').insert(values)
       if (error) throw error
       return data
-    }
-  )
+    },
+  })
 }
 
 function useDeleteComment() {
   const queryClient = useQueryClient()
-  return useMutation(
-    ['delete_comment'],
-    async (comment_id: number) => {
-      const { data, error } = await supabase
-        .from('comments')
-        .delete()
-        .eq('comment_id', comment_id)
+  return useMutation({
+    mutationKey: ['delete_comment'],
+    mutationFn: async (comment_id: number) => {
+      const { data, error } = await supabase.from('comments').delete().eq('comment_id', comment_id)
       if (error) throw error
       return data
     },
-    {
-      onSuccess(_data, variables) {
-        queryClient.invalidateQueries()
-      },
-    }
-  )
+    onSuccess(_data, variables) {
+      queryClient.invalidateQueries()
+    },
+  })
 }
 
 function useLogout() {
-  return useMutation(['logout'], async () => {
-    await supabase.auth.signOut()
+  return useMutation({
+    mutationKey: ['logout'],
+    mutationFn: async () => {
+      await supabase.auth.signOut()
+    }
   })
 }
 ```

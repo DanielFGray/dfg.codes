@@ -1,11 +1,9 @@
-import ReactDOMServer from 'react-dom/server'
 import { Feed } from 'feed'
 import { mkdir, writeFile } from 'fs/promises'
-
 import { getAllArticles } from './getAllArticles'
 
 export async function generateRssFeed() {
-  const articles = (await getAllArticles())
+  const articles = await getAllArticles()
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
   const author = {
     name: 'Daniel Gray',
@@ -28,16 +26,16 @@ export async function generateRssFeed() {
   })
 
   for (const article of articles) {
-    const url = `${siteUrl}/articles/${article.meta.slug}`
+    const url = `${siteUrl}/articles/${article.slug}`
 
     feed.addItem({
-      title: article.meta.title,
+      title: article.title,
       id: url,
       link: url,
-      description: article.meta.description,
+      description: article.description,
       author: [author],
       contributor: [author],
-      date: new Date(article.meta.date),
+      date: new Date(article.date),
     })
   }
 

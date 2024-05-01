@@ -1,6 +1,6 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { useRouter } from 'next/router'
+import { usePathname, useRouter } from 'next/navigation'
 import { Popover, Transition } from '@headlessui/react'
 import clsx from 'clsx'
 
@@ -20,10 +20,10 @@ function MobileNavItem({ href, children }) {
   )
 }
 
-function MobileNavigation(props: Parameters<typeof Popover<"div">>[0]) {
+function MobileNavigation(props: Parameters<typeof Popover<'div'>>[0]) {
   return (
     <Popover {...props} as="div">
-      <Popover.Button className="group flex items-center rounded-full bg-white/90 px-4 py-2 text-sm font-medium text-primary-800 shadow-lg shadow-primary-800/5 ring-1 ring-primary-900/5 backdrop-blur dark:bg-primary-800/90 dark:text-primary-200 dark:ring-white/10 dark:hover:ring-white/20">
+      <Popover.Button className="group flex items-center rounded-full bg-white/90 px-4 py-2 text-sm font-medium text-primary-800 shadow-lg shadow-primary-800/5 ring-1 ring-primary-900/5 backdrop-blur dark:bg-primary-800/90 dark:text-primary-200 dark:ring-primary-700 dark:hover:ring-white/20">
         Menu
         <ChevronDownIcon className="ml-3 h-auto w-2 stroke-primary-500 group-hover:stroke-primary-700 dark:group-hover:stroke-primary-400" />
       </Popover.Button>
@@ -62,7 +62,11 @@ function MobileNavigation(props: Parameters<typeof Popover<"div">>[0]) {
             </div>
             <nav className="mt-6">
               <ul className="-my-2 divide-y divide-primary-100 text-base text-primary-800 dark:divide-primary-100/5 dark:text-primary-300">
-                {navlinks.map(link => <MobileNavItem key={link.href} href={link.href}>{link.label}</MobileNavItem>)}
+                {navlinks.map(link => (
+                  <MobileNavItem key={link.href} href={link.href}>
+                    {link.label}
+                  </MobileNavItem>
+                ))}
               </ul>
             </nav>
           </Popover.Panel>
@@ -73,7 +77,7 @@ function MobileNavigation(props: Parameters<typeof Popover<"div">>[0]) {
 }
 
 function NavItem({ href, children }) {
-  const isActive = useRouter().pathname === href
+  const isActive = usePathname() === href
 
   return (
     <li>
@@ -82,13 +86,19 @@ function NavItem({ href, children }) {
         className={clsx(
           'relative block px-3 py-2 transition',
           isActive
-            ? 'text--500 dark:text-secondary-400'
-            : 'hover:text--500 dark:hover:text-secondary-400'
+            ? 'text-secondary-500 dark:text-secondary-400'
+            : 'hover:text-secondary-500 dark:hover:text-secondary-400',
         )}
       >
         {children}
         {isActive && (
-          <span className="from--500/0 absolute inset-x-1 -bottom-px h-px bg-gradient-to-r via-secondary-500/40 to-secondary-500/0 dark:from-secondary-400/0 dark:via-secondary-400/40 dark:to-secondary-400/0" />
+          <span
+            className={clsx(
+              'absolute inset-x-1 -bottom-px h-px',
+              'bg-gradient-to-r from-secondary-500/0 via-secondary-500/40 to-secondary-500/0',
+              'dark:from-secondary-400/0 dark:via-secondary-400/40 dark:to-secondary-400/0',
+            )}
+          />
         )}
       </Link>
     </li>
@@ -98,8 +108,12 @@ function NavItem({ href, children }) {
 function DesktopNavigation(props: React.HTMLAttributes<HTMLElement>) {
   return (
     <nav {...props}>
-      <ul className="flex rounded-full bg-white/90 px-3 text-sm font-medium text-primary-800 shadow-lg shadow-primary-800/5 ring-1 ring-primary-900/5 dark:bg-primary-800/90 dark:text-primary-200 dark:ring-white/10">
-        {navlinks.map(link => <NavItem key={link.href} href={link.href}>{link.label}</NavItem>)}
+      <ul className="flex rounded-full bg-white/90 px-3 text-sm font-medium text-primary-800 shadow-lg shadow-primary-800/5 ring-1 ring-primary-900/5 dark:bg-primary-800/90 dark:text-primary-200 dark:ring-primary-700">
+        {navlinks.map(link => (
+          <NavItem key={link.href} href={link.href}>
+            {link.label}
+          </NavItem>
+        ))}
       </ul>
     </nav>
   )
@@ -151,28 +165,27 @@ function AvatarContainer({ className, ...props }: React.HTMLAttributes<HTMLDivEl
     <div
       className={clsx(
         className,
-        'h-10 w-10 rounded-full bg-white/90 p-0.5 shadow-lg shadow-primary-800/5 ring-1 ring-primary-900/5 backdrop-blur dark:bg-primary-800/90 dark:ring-white/10'
+        'h-10 w-10 rounded-full bg-white/90 p-0.5 shadow-lg shadow-primary-800/5 ring-1 ring-primary-900/5 backdrop-blur dark:bg-primary-800/90 dark:ring-white/10',
       )}
       {...props}
     />
   )
 }
 
-function Avatar({ large = false, className, ...props }: { large?: boolean } & React.HTMLAttributes<HTMLAnchorElement>) {
+function Avatar({
+  large = false,
+  className,
+  ...props
+}: { large?: boolean } & React.HTMLAttributes<HTMLAnchorElement>) {
   return (
-    <Link
-      href="/"
-      aria-label="Home"
-      className={clsx(className, 'pointer-events-auto')}
-      {...props}
-    >
+    <Link href="/" aria-label="Home" className={clsx(className, 'pointer-events-auto')} {...props}>
       <Image
         src={avatarImage}
         alt=""
         sizes={large ? '4rem' : '2.25rem'}
         className={clsx(
           'rounded-full bg-primary-100 object-cover dark:bg-primary-800',
-          large ? 'h-16 w-16' : 'h-9 w-9'
+          large ? 'h-16 w-16' : 'h-9 w-9',
         )}
         priority
       />
@@ -181,7 +194,7 @@ function Avatar({ large = false, className, ...props }: { large?: boolean } & Re
 }
 
 export function Header() {
-  const isHomePage = useRouter().pathname === '/'
+  const isHomePage = usePathname() === '/'
 
   const headerRef = useRef<undefined | HTMLDivElement>()
   const avatarRef = useRef<undefined | HTMLDivElement>()
@@ -196,12 +209,8 @@ export function Header() {
     }
 
     function updateHeaderStyles() {
-      const { top, height } = headerRef.current?.getBoundingClientRect()
-      const scrollY = clamp(
-        window.scrollY,
-        0,
-        document.body.scrollHeight - window.innerHeight
-      )
+      const { top, height } = headerRef.current.getBoundingClientRect()
+      const scrollY = clamp(window.scrollY, 0, document.body.scrollHeight - window.innerHeight)
 
       if (isInitial.current) {
         setStyleProperty('--header-position', 'sticky')
@@ -223,7 +232,7 @@ export function Header() {
     }
 
     function updateAvatarStyles() {
-      if (! isHomePage) {
+      if (!isHomePage) {
         return
       }
 
@@ -240,10 +249,7 @@ export function Header() {
       let x = (scrollY * (fromX - toX)) / downDelay + toX
       x = clamp(x, fromX, toX)
 
-      setStyleProperty(
-        '--avatar-image-transform',
-        `translate3d(${x}rem, 0, 0) scale(${scale})`
-      )
+      setStyleProperty('--avatar-image-transform', `translate3d(${x}rem, 0, 0) scale(${scale})`)
 
       const borderScale = 1 / (toScale / scale)
       const borderX = (-toX + x) * borderScale
@@ -272,7 +278,7 @@ export function Header() {
   return (
     <>
       <header
-        className="pointer-events-none relative z-50 flex flex-col"
+        className="relative z-50 flex flex-col bg-gradient-to-b from-secondary-700 to-transparent"
         style={{
           height: 'var(--header-height)',
           marginBottom: 'var(--header-mb)',
@@ -307,13 +313,13 @@ export function Header() {
         )}
         <div
           ref={headerRef}
-          className="top-0 z-10 pt-6 pb-8"
+          className="top-0 z-10 pb-8 pt-6"
           style={{ position: 'var(--header-position)' } as unknown as React.CSSProperties}
         >
           <Container>
             <div className="relative flex gap-4">
               <div className="flex flex-1">
-                {! isHomePage && (
+                {!isHomePage && (
                   <AvatarContainer>
                     <Avatar />
                   </AvatarContainer>

@@ -4,6 +4,8 @@ export interface Article {
   date: string
   description: string
   words: number
-  time: string
+  time: number
   tags: Array<string>
+  category: string
+  image?: string
 }

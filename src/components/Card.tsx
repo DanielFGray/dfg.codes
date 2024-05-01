@@ -20,9 +20,9 @@ export const Card = classed('div', 'group relative flex flex-col items-start')
 Card.Link = function CardLink({ children, ...props }: LinkProps & { children: React.ReactNode }) {
   return (
     <>
-      <div className="absolute -inset-y-6 -inset-x-4 z-0 scale-95 bg-primary-50 opacity-0 transition group-hover:scale-100 group-hover:opacity-100 dark:bg-primary-900/50 sm:-inset-x-6 sm:rounded-2xl" />
+      <div className="absolute -inset-x-4 -inset-y-6 z-0 scale-95 bg-primary-50/40 opacity-0 transition group-hover:scale-100 group-hover:opacity-100 dark:bg-primary-800/40 sm:-inset-x-6 sm:rounded-2xl" />
       <Link {...props}>
-        <span className="absolute -inset-y-6 -inset-x-4 z-20 sm:-inset-x-6 sm:rounded-2xl" />
+        <span className="absolute -inset-x-4 -inset-y-6 z-20 sm:-inset-x-6 sm:rounded-2xl" />
         <span className="relative z-10">{children}</span>
       </Link>
     </>
@@ -76,32 +76,29 @@ Card.Cta = function CardCta({ children }) {
   )
 }
 
-Card.Eyebrow = function CardEyebrow<T>({
+Card.Eyebrow = function CardEyebrow<
+  T extends keyof JSX.IntrinsicElements | ((p: P) => React.ReactNode),
+  P extends Object,
+>({
+  // @ts-expect-error polymorphic components are hard
   as: Component = 'p',
-  decorate = false,
   className,
   children,
   ...props
 }: {
-  as?: keyof JSX.IntrinsicElements | ((p: T) => JSX.Element)
-  decorate?: boolean
+  as?: T
   className?: string
   children: React.ReactNode
-} & Omit<React.PropsWithoutRef<T>, 'children'>) {
+} & Omit<React.ComponentProps<T>, 'children'>) {
   return (
+    // @ts-expect-error
     <Component
       className={clsx(
         className,
-        'relative z-10 order-first mb-3 flex items-center text-sm text-primary-400 dark:text-primary-500',
-        decorate && 'pl-3.5',
+        'relative z-10 order-first mb-3 flex items-center text-sm text-primary-500 text-thin',
       )}
       {...props}
     >
-      {decorate && (
-        <span className="absolute inset-y-0 left-0 flex items-center" aria-hidden="true">
-          <span className="h-4 w-0.5 rounded-full bg-primary-200 dark:bg-primary-500" />
-        </span>
-      )}
       {children}
     </Component>
   )

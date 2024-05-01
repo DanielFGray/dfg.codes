@@ -10,10 +10,7 @@ function OuterContainer({ className, children, ...props }: React.HTMLProps<HTMLD
 
 function InnerContainer({ className, children, ...props }: React.HTMLProps<HTMLDivElement>) {
   return (
-    <div
-      className={clsx('relative px-4 sm:px-8 lg:px-12', className)}
-      {...props}
-    >
+    <div className={clsx('relative px-4 sm:px-8 lg:px-12', className)} {...props}>
       <div className="mx-auto max-w-2xl lg:max-w-5xl">{children}</div>
     </div>
   )

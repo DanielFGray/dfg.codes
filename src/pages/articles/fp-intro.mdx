@@ -1,11 +1,13 @@
-import { ArticleLayout } from '~/components/ArticleLayout'
+import { ArticleLayout } from '~/components/Articles'
+import { EditorWithConsole } from '~/components/Editors'
 
 export const meta = {
   title: 'Functional Programming: a small introduction',
   category: 'computers',
   tags: ['programming', 'javascript', 'fp'],
   date: '2017-01-10',
-  description: "It seems there's some confusion on why you might use functional programming methods like map/reduce/filter, and so I thought I'd write something to try and explain why I think they're useful and interesting.",
+  description:
+    "It seems there's some confusion on why you might use functional programming methods like map/reduce/filter, and so I thought I'd write something to try and explain why I think they're useful and interesting.",
 }
 
 export default props => <ArticleLayout meta={meta} {...props} />
@@ -20,14 +22,16 @@ Imagine you have an array of numbers, and you want to sum them.
 
 The common imperative approach is usually something like this:
 
-```javascript
-var ints = [1, 2, 3, 4]
-var sum = 0
-for (var i = 0; i < count(ints); i++) {
+<EditorWithConsole
+  file={`
+const ints = [1, 2, 3, 4]
+let sum = 0
+for (let i = 0; i < ints.length; i++) {
   sum += ints[i]
 }
-sum // -> 10
-```
+console.log(sum)
+`}
+/>
 
 Functional programming offers an alternative approach:
 
@@ -45,9 +49,11 @@ sum(ints) // -> 10
 
 I think about reduce as a way to join many values into a single value, it takes a series of values and builds up a new value.
 
+<div className="full-bleed">
+<CH.Scrollycoding>
 A simple implementation of `reduce()` might be something like this:
 
-```javascript bg=4
+```javascript
 function reduce(func, initial, arr) {
   let state = initial
   for (let i = 0, l = arr.length; i < l; ++i) {
@@ -57,10 +63,34 @@ function reduce(func, initial, arr) {
 }
 ```
 
-- At the beginning of the function, `state` is initialized as a copy of the `initial` argument.
-- Every iteration, `state` is re-assigned with the value of calling `func(state, arr[i])`. This _calls_ the given variable as a function.
-- When it calls the function given to it, it sends the previous value of `state` (or the initial value if it's the first iteration), and the current element in the array, as arguments to the given `func` so they may be accessed inside the given function when it's called.
-- Then finally, the last `state` is returned.
+---
+
+At the beginning of the function, `state` is initialized as a copy of the `initial` argument.
+
+```javascript focus=2
+
+```
+
+---
+
+Every iteration, `state` is re-assigned with the value of calling `func(state, arr[i])`.
+
+When it calls the function given to it, it sends the previous value of `state` (or the initial value if it's the first iteration), and the current element in the array, as arguments to the given `func` so they may be accessed inside the given function when it's called.
+
+```javascript focus=3,4
+
+```
+
+---
+
+Then finally, the last `state` is returned.
+
+```javascript focus=6
+
+```
+
+</CH.Scrollycoding>
+</div>
 
 A function that takes another function as an argument (or returns another function) is a called a _higher-order function_. `reduce` is a higher-order function that "folds" multiple of values into a single value.
 
@@ -72,33 +102,32 @@ A function that takes another function as an argument (or returns another functi
 [exercise]: http://eloquentjavascript.net/04_data.html
 
 ```javascript
-[1, 2, 3] // an array of numbers
+const nums = [1, 2, 3] // an array of numbers
 
 // becomes
 
-{
+const result = {
   value: 1,
   rest: {
     value: 2,
     rest: {
       value: 3,
-      rest: null
-    }
-  }
+      rest: null,
+    },
+  },
 }
 ```
 
 There are a number of ways to solve this, but here is my approach:
 
-```javascript
-[1, 2, 3].reduceRight(
-  (prev, current) => ({
-    value: current,
-    rest: prev,
-  }),
-  null
-)
-```
+<EditorWithConsole
+  file={`
+const nums = [1, 2, 3]
+const result = nums
+  .reduceRight((rest, value) => ({ value, rest }), null)
+console.log(result)
+`}
+/>
 
 `reduceRight` is the same as reduce except it starts at the end of the array, and works backwards.
 
@@ -109,14 +138,23 @@ Even though JavaScript is weakly typed, analyzing the type signatures of functio
 The type of functions used in _reducers_ is `a b -> a`, that is, a function that takes two arguments and returns a value that's the same type as the first argument.  
 `reduce` is a function with the signature `(b a -> b) b [a] -> b`: it accepts a reducer function, a thing `b`, a list `a`, and returns a thing the same type of `b`.
 
-I should note that these are _imperative_ solutions, _recursive_ solutions are more typical in functional approaches.
+I should note that recursive solutions are more typical in functional approaches.
 
-```javascript
-function reduce(fn, i, l) {
-  if (l.length === 0) return i
-  return reduce(fn, fn(i, l[0]), l.slice(1))
+<EditorWithConsole
+  file={`
+function reduce(fn, init, a) {
+  if (a.length === 0) return init
+  return reduce(fn, fn(init, a[0]), a.slice(1))
 }
-```
+function reduceRight(fn, init, a) {
+  if (a.length === 0) return init
+  return reduceRight(fn, fn(init, a[a.length - 1]), a.slice(0, -1))
+}
+const nums = [1, 2, 3, 4]
+console.log(reduce((a, b) => a + b, 0, nums))
+console.log(reduceRight((rest, value) => ({ value, rest }), null, nums))
+`}
+/>
 
 ## Map
 
@@ -126,24 +164,26 @@ What if you wanted to transform each element? Maybe you have an array of numbers
 
 The imperative approach might be something like:
 
-```javascript
-var ints = [1, 2, 3, 4]
-var squared = []
-for (var i = 0, length = ints.length; i < length; ++i) {
+<EditorWithConsole
+  file={`
+const ints = [1, 2, 3, 4]
+const squared = []
+for (let i = 0, length = ints.length; i < length; ++i) {
   squared.push(ints[i] * ints[i])
 }
-ints // -> [1, 4, 9, 16]
-```
+console.log(squared)
+`}
+/>
 
 In functional programming, when you want to iterate over a set and transform it, you would use `map`.
 
-```javascript
-function square(n) {
-  return n * n
-}
-
-;[1, 2, 3, 4].map(n => square(n)) // -> [1, 4, 9, 16]
-```
+<EditorWithConsole
+  file={`
+const ints = [1, 2, 3, 4]
+const squared = ints.map(n => n * n)
+console.log(squared)
+`}
+/>
 
 This is much tidier, in my opinion. When you see that big messy `for` loop, you have no idea what's going on until you fully read the whole thing and attempt to mentally parse it. When you see `map`, without reading anything but that word, you immediately know that you are creating a new array with all of the values changed by a given function.
 
@@ -157,8 +197,8 @@ You could implement `map` like the following:
 
 ```javascript
 function map(func, arr) {
-  var state = []
-  for (var i = 0, l = arr.length; i < l; ++i) {
+  const state = []
+  for (let i = 0, l = arr.length; i < l; ++i) {
     state.push(func(arr[i]))
   }
   return state
@@ -169,35 +209,40 @@ It follows much the same pattern as the `reduce` function. In fact, they're almo
 
 If you recall, `reduce` always returns a single value. Well, an array, although it contains many items, is itself a single value. What if you give `reduce` an empty array as the initial value, and add to that array instead?
 
-```javascript
-var ints = [1, 2, 3, 4]
-reduce(
-  (previous, current) => {
-    previous.push(current * current)
-    return previous
-  },
-  [],
-  ints
-) // -> [1, 4, 9, 16]
-```
+<EditorWithConsole
+  file={`
+const ints = [1, 2, 3, 4]
+ints.reduce((prev, curr) => {
+  prev.push(curr * curr)
+  return prev
+}, [])
+`}
+/>
 
 It works just as expected!
 
 In fact, you can implement `map` as a wrapper around reduce:
 
-```javascript
+<EditorWithConsole
+  file={`
+const ints = [1, 2, 3, 4]
 const map = (fn, a) =>
   a.reduce((prev, curr) => {
     prev.push(fn(curr))
     return prev
   }, [])
-```
+console.log(map(n => n * n, ints))
+`}
+/>
 
 If your map function returns another array, you can even "un-nest" or flatten the arrays into a single array:
 
-```javascript
+<EditorWithConsole
+  file={`
 const flatMap = (fn, a) => a.reduce((p, c) => p.concat(c), [])
-```
+console.log(flatMap(n => [n, n], [1, 2, 3, 4]))
+`}
+/>
 
 ## Filter
 
@@ -205,29 +250,31 @@ Filtering a list of values is another useful task to be done with an array.
 
 We can implement a `filter` function that iterates over the whole list, and returns a new list of values that only match a given function:
 
-```javascript
+<EditorWithConsole
+  file={`
 const filter = (fn, a) => a.reduce((p, c) => (
   fn(c) ? p.concat([c]) : p
 ), [])
-
 const isEven = n => n % 2 === 0
-filter(isEven, [1, 2, 3, 4]) // -> [2, 4]
-```
+console.log(filter(isEven, [1, 2, 3, 4]))
+`}
+/>
 
 ### Partiton
 
 A slight twist on filter, this splits an array into two arrays whether they match a predicate function:
 
-```javascript
+<EditorWithConsole
+  file={`
 const partition = (fn, a) =>
-  a.reduce(([t, f], c) => (
-    fn(c)
-      ? [t.concat([c]), f]
-      : [t, f.concat([c])]
-  ), [[], []])
-
-partition(isEven, [1, 2, 3, 4]) // -> [[2, 4], [1, 3]]
-```
+  a.reduce((p, c) => {
+    const idx = Number(fn(c))
+    p[idx].push(c)
+    return p
+  }, [[], []])
+console.log(partition(n => n % 2 === 0, [1, 2, 3, 4]))
+`}
+/>
 
 ---
 
@@ -237,14 +284,8 @@ If you know that map operates on a function and an array, and you see the follow
 
 ```javascript
 const items = [
-  {
-    foo: 'a',
-    bar: 1,
-  },
-  {
-    foo: 'b',
-    bar: 2,
-  },
+  { foo: 'a', bar: 1 },
+  { foo: 'b', bar: 2 },
 ]
 
 // functional
@@ -263,11 +304,14 @@ That example above, taking an array of objects and retrieving the value of a par
 
 I can take this another step further and make a function specifically for retrieving values from an array of objects:
 
-```javascript
+<EditorWithConsole
+  file={`
+const items = [{ foo: 'a', bar: 1 }, { foo: 'b', bar: 2 }]
 const prop = a => b => b[a]
-items.map(prop('foo'))
-const pluck = a => b => b.map(prop(a))
-pluck('foo', items)
-```
+console.log(items.map(prop('foo')))
+const pluck = (a, b) => b.map(prop(a))
+console.log(pluck('foo', items))
+`}
+/>
 
 > If you're interested in learning more about functional programming, check out my post on [currying and partial application](./fp-curry-pa)

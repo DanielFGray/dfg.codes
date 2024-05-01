@@ -1,11 +1,12 @@
-import { ArticleLayout } from '~/components/ArticleLayout'
+import { ArticleLayout } from '~/components/Articles'
 
 export const meta = {
   title: 'Backporting packages in Debian',
   category: 'computers',
   tags: ['debian', 'linux'],
   date: '2013-10-22',
-  description: "Are you anxious for a new version of a particular package, and don't want to wait for someone else to submit it to backports? After a few hours of reading docs and testing this out myself I feel like I've gotten a good grasp on this, so I'd like to share what's been working for me.",
+  description:
+    "Are you anxious for a new version of a particular package, and don't want to wait for someone else to submit it to backports? After a few hours of reading docs and testing this out myself I feel like I've gotten a good grasp on this, so I'd like to share what's been working for me.",
 }
 
 export default props => <ArticleLayout meta={meta} {...props} />

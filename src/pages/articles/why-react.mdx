@@ -1,11 +1,11 @@
-import { ArticleLayout } from '~/components/ArticleLayout'
+import { ArticleLayout } from '~/components/Articles'
+
 export const meta = {
   title: 'Why Use React?',
   category: 'computers',
   tags: ['react', 'javascript', 'programming'],
   date: '2017-04-17',
-  description:
-    "Introductions are hard, so I'm just gonna jump right into this.",
+  description: "Introductions are hard, so I'm just gonna jump right into this.",
 }
 export default props => <ArticleLayout meta={meta} {...props} />
 
@@ -70,7 +70,7 @@ I think this shows the two fundamental differences between the two approaches:
 Both of these approaches create a [DSL](https://en.wikipedia.org/wiki/Domain-specific_language).
 
 When you're working with Vue or Angular you're using their flavor of logic mixed into your HTML.
-t
+
 When you're working with React, you use JavaScript's native logic mixed with its flavor of markup (JSX).
 
 I think introducing logic into HTML is fixing the wrong part, I don't need magic in my HTML, I need a way to update the DOM from JavaScript.

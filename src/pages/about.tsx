@@ -1,4 +1,5 @@
-import Image from 'next/future/image'
+import { type Metadata } from 'next'
+import Image from 'next/image'
 import Head from 'next/head'
 
 import { Container } from '~/components/Container'
@@ -16,13 +17,17 @@ function MailIcon(props: React.SVGProps<SVGSVGElement>) {
   )
 }
 
+const metadata: Metadata = {
+  title: 'About Daniel Gray',
+  description: 'hello world!',
+}
+
 export default function About() {
-  const title = 'Hello world!'
   return (
     <Container className="mt-16 sm:mt-32">
       <Head>
         <title>About - Daniel Gray</title>
-        <meta name="description" content={title} />
+        <meta name="description" content={metadata.description} />
       </Head>
       <div className="grid grid-cols-1 gap-y-16 lg:grid-cols-2 lg:grid-rows-[auto_1fr] lg:gap-y-12">
         <div className="lg:pl-20">
@@ -37,7 +42,7 @@ export default function About() {
         </div>
         <div className="lg:order-first lg:row-span-2">
           <h1 className="text-4xl font-bold tracking-tight text-primary-800 dark:text-primary-100 sm:text-5xl">
-            {title}
+            {metadata.description}
           </h1>
           <div className="prose mt-6 space-y-7 text-base text-primary-600 dark:prose-invert dark:text-primary-400">
             <p>

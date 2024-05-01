@@ -1,14 +1,13 @@
-import { Suspense } from 'react'
-import dynamic from 'next/dynamic'
-import { ArticleLayout } from '~/components/ArticleLayout'
-import { dracula } from '@codesandbox/sandpack-themes'
+import { ArticleLayout } from '~/components/Articles'
+import { EditorWithPreview } from '~/components/Editors'
 
 export const meta = {
   title: 'Easy React Forms with FormData',
   category: 'computers',
   tags: ['react', 'javascript', 'programming'],
   date: '2022-06-06',
-  description: "Storing each form input value in React state can be tedious, but it doesn't have to be that way.",
+  description:
+    "Storing each form input value in React state can be tedious, but it doesn't have to be that way.",
 }
 
 export default props => <ArticleLayout meta={meta} {...props} />
@@ -19,7 +18,7 @@ Storing each form input value in React state can be tedious, but it doesn't have
 
 I often see folks using state to store each individual value of a form:
 
-```js
+```javascript
 export function ExampleForm() {
   const [username, setUsername] = React.useState('')
   const [password, setPassword] = React.useState('')
@@ -76,7 +75,7 @@ When given a form element, it returns a `FormData` object of all the inputs with
 
 In a React form we can pass the form element to `FormData` by accessing it from the event given to the callback:
 
-```js
+```javascript
 <form onSubmit={ev => {
   console.log(new FormData(ev.currentTarget))
 }}>
@@ -88,7 +87,7 @@ This returns a `FormData` object, not a plain ol JavaScript object.
 
 If you have files to upload with your form, then this is ideal. You can pass the `FormData` object to your `fetch` request and be on your way:
 
-```js bg=3
+```javascript bg=3
 <form onSubmit={ev => {
   ev.preventDefault()
   const body = new FormData(ev.currentTarget)
@@ -100,7 +99,7 @@ Again, your form inputs **must** have a `name` attribute in order to be picked u
 
 If we don't have files to upload and we want to send a `application/json` request, we can do the following:
 
-```js bg=3
+```javascript bg=3
 <form onSubmit={ev => {
   ev.preventDefault()
   const body = Object.fromEntries(new FormData(ev.currentTarget))
@@ -110,7 +109,7 @@ If we don't have files to upload and we want to send a `application/json` reques
 
 Or if we want to send a `application/x-www-form-urlencoding` request, we can use create a `URLSearchParams` object:
 
-```js bg=3
+```javascript bg=3
 <form onSubmit={ev => {
   ev.preventDefault()
   const body = new URLSearchParams(new FormData(ev.currentTarget))
@@ -120,8 +119,8 @@ Or if we want to send a `application/x-www-form-urlencoding` request, we can use
 
 Here's full working examples of both so you can compare:
 
-<CH.Spotlight className="horizontal">
-```js
+<CH.Spotlight className="horizontal" rows={40}>
+```javascript
 export function ExampleForm() {
   return (
     <form
@@ -156,15 +155,17 @@ export function ExampleForm() {
 
 ---
 
-```js
+with FormData api
+
+```javascript
 
 ```
 
-with FormData api
-
 ---
 
-```js
+with controlled inputs
+
+```javascript
 export function ExampleForm() {
   const [username, setUsername] = React.useState('')
   const [password, setPassword] = React.useState('')
@@ -206,8 +207,6 @@ export function ExampleForm() {
   )
 }
 ```
-
-with controlled inputs
 
 ---
 
@@ -262,7 +261,7 @@ Sometimes you need to reset the form after submission. What do you do when you d
 
 `useRef`!
 
-```js bg=2,4:6,11
+```javascript bg=2,4:6,11
 export function ExampleForm() {
   const formRef = useRef(null)
   return (
@@ -288,8 +287,8 @@ There's a lot you can do with HTML attributes like `required`, `pattern`, `minle
 
 Here's an example of only using state to show validation errors:
 
-export const validationFormExample =
-`import * as React from "react"
+export const validationFormExample = `
+import * as React from "react"
 
 const validators = {
   title(value) {
@@ -349,7 +348,7 @@ export default function ExampleForm() {
           />
         </label>
         {errors.title && (
-          <div id="form-title-error" aria-live="assertive">
+          <div id="form-error-title" aria-live="assertive">
             {errors.title}
           </div>
         )}
@@ -361,11 +360,11 @@ export default function ExampleForm() {
             name="body"
             onChange={validate}
             aria-invalid={Boolean(errors.body)}
-            aria-errormessage={errors.body ? "form-body-error" : undefined}
+            aria-errormessage={errors.body ? "form-error-body" : undefined}
           />
         </label>
         {errors.body && (
-          <div id="form-body-error" aria-live="assertive">
+          <div id="form-error-body" aria-live="assertive">
             {errors.body}
           </div>
         )}
@@ -377,8 +376,10 @@ export default function ExampleForm() {
     </form>
   )
 }
-`
-export const validationFormExampleStyle = `body {
+`.trim()
+
+export const validationFormExampleStyle = `
+body {
   font-family: sans;
 }
 
@@ -393,34 +394,19 @@ textarea, input {
   border: red 1px solid;
 }
 
-[id^=form][id$=error] {
+[id^=form-error] {
   font-weight: 500;
   color: red;
-}`
+}
+`.trim()
 
-export const Sandpack = dynamic(
-  async () => {
-    return await import('@codesandbox/sandpack-react')
-      .then(x => ({ default: x.Sandpack }))
-  },
-  { suspense: true }
-)
-
-<Suspense fallback={null}>
-  <Sandpack
-    template="react"
-    files={{
-      '/styles.css': validationFormExampleStyle,
-      '/App.js': validationFormExample
-    }}
-    theme={dracula}
-    options={{
-      editorWidthPercentage: 60,
-      showInlineErrors: true,
-      recompileDelay: 200,
-    }}
-  />
-</Suspense>
+<EditorWithPreview
+  template="react"
+  files={{
+    '/App.js': validationFormExample,
+    '/styles.css': validationFormExampleStyle,
+  }}
+/>
 
 Keep in mind that validation in the browser is purely for the user experience, and is not a replacement for server side validation.
 

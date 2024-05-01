@@ -15,7 +15,17 @@ export const socials = [
   },
 ]
 
-export function SocialLink({ className, href, children, icon: Icon }: { className?: string, href?: string, children: React.ReactNode, icon: (props: any) => JSX.Element }) {
+export function SocialLink({
+  className,
+  href,
+  children,
+  icon: Icon,
+}: {
+  className?: string
+  href?: string
+  children: React.ReactNode
+  icon: (props: any) => JSX.Element
+}) {
   return (
     <li className={clsx(className, 'flex')}>
       <Link
@@ -29,16 +39,17 @@ export function SocialLink({ className, href, children, icon: Icon }: { classNam
   )
 }
 
-export function SocialLinks({ labels = true, className }: { labels?: boolean, className?: string }) {
+export function SocialLinks({
+  labels = true,
+  className,
+}: {
+  labels?: boolean
+  className?: string
+}) {
   return (
     <>
       {socials.map(s => (
-        <SocialLink
-          key={s.label}
-          href={s.href}
-          icon={s.icon}
-          className={className}
-        >
+        <SocialLink key={s.label} href={s.href} icon={s.icon} className={className}>
           {labels && <>Follow on {s.label}</>}
         </SocialLink>
       ))}
@@ -95,7 +106,6 @@ export function ArrowDownIcon(props: React.SVGProps<SVGSVGElement>) {
     </svg>
   )
 }
-
 
 export function MailIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -214,4 +224,3 @@ export function LinkIcon(props: React.SVGProps<SVGSVGElement>) {
     </svg>
   )
 }
-
