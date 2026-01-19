@@ -332,7 +332,7 @@ export default function ExampleForm() {
         }
 
         // in a real app you would fetch here
-        console.log("fetch", { body: fields })
+        console.log("fetch:", { body: fields })
         formRef.current?.reset()
       }}
     >
@@ -400,13 +400,19 @@ textarea, input {
 }
 `.trim()
 
+<div className="full-bleed not-prose">
 <EditorWithPreview
   template="react"
+  options={{
+    editorHeight: '80dvh',
+    showConsole: true,
+  }}
   files={{
     '/App.js': validationFormExample,
-    '/styles.css': validationFormExampleStyle,
+    '/styles.css': { code: validationFormExampleStyle, hidden: true },
   }}
 />
+</div>
 
 Keep in mind that validation in the browser is purely for the user experience, and is not a replacement for server side validation.
 

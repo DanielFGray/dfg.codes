@@ -44,6 +44,7 @@ export function EditorWithConsole(props: SandpackProps) {
       }
     >
       <Sandpack
+        className="not-prose"
         template={props.template ?? 'vanilla'}
         files={'file' in props ? { 'index.js': props.file.trim() } : props.files}
         theme={theme}

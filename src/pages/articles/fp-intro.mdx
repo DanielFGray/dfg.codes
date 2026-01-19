@@ -195,7 +195,8 @@ This is much tidier, in my opinion. When you see that big messy `for` loop, you 
 
 You could implement `map` like the following:
 
-```javascript
+<EditorWithConsole
+  file={`
 function map(func, arr) {
   const state = []
   for (let i = 0, l = arr.length; i < l; ++i) {
@@ -203,7 +204,9 @@ function map(func, arr) {
   }
   return state
 }
-```
+console.log(map(n => n * n, [1, 2, 3]))
+`}
+/>
 
 It follows much the same pattern as the `reduce` function. In fact, they're almost identical...
 
@@ -212,10 +215,11 @@ If you recall, `reduce` always returns a single value. Well, an array, although 
 <EditorWithConsole
   file={`
 const ints = [1, 2, 3, 4]
-ints.reduce((prev, curr) => {
+const product = ints.reduce((prev, curr) => {
   prev.push(curr * curr)
   return prev
 }, [])
+console.log(product)
 `}
 />
 

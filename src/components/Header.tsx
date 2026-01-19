@@ -187,7 +187,6 @@ function Avatar({
           'rounded-full bg-primary-100 object-cover dark:bg-primary-800',
           large ? 'h-16 w-16' : 'h-9 w-9',
         )}
-        priority
       />
     </Link>
   )

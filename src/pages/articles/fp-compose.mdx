@@ -123,19 +123,36 @@ The benefits of these really shine with _variadic_ implementations, so you can p
 
 <EditorWithConsole
   file={`
+function curry(func) {
+  return function curried(...args) {
+    return args.length >= func.length
+      ? func.apply(this, args)
+      : curried.bind(this, ...args)
+  }
+}
+
 const id = a => a
 const _compose = (f, g) => x => f(g(x))
 const compose = (...fs) => fs.reduce(_compose, id)
 const pipe = (...fs) => fs.reduceRight(_compose, id)
 const objOf = curry((k, o) => ({ [k]: o }))
-const tap = curry((f, v) => {
-  f(v)
-  return v
-})
+const tap = curry((f, v) => (f(v), v))
 const log = tap(console.log)
-const myfn = pipe(upper, log, exclaim, log, objOf('yell'), log)
+const upper = str => str.toUpperCase()
+const exclaim = str => \`\${str}!\`
+
+const myfn = pipe(
+  log,
+  upper,
+  log,
+  exclaim,
+  log,
+  objOf('yell'),
+  log,
+)
+
 console.log(myfn('hello world'))
-`}
+`.trim()}
 />
 
 ---

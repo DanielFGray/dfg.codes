@@ -2,10 +2,11 @@ import { ArticleLayout } from '~/components/Articles'
 import { Callout } from '~/components/Prose'
 
 export const meta = {
-  title: 'Authentication and Authorization using Postgres and Express',
+  title: 'Authentication and Authorization using Postgres and Node.js',
   category: 'computers',
   tags: ['programming', 'postgres', 'nodejs', 'express', 'sql', 'typescript', 'unfinished'],
   date: '2023-11-23',
+  updated: '2024-07-20',
   description:
     'A step-by-step guide to using Postgres for authentication and authorization with an Express.js server',
 }
@@ -14,7 +15,7 @@ export default props => <ArticleLayout meta={meta}>{props.children}</ArticleLayo
 
 ## what we're building
 
-we're going to build a server that lets users make "posts", we'll add peristence, authentication, and authorization to it as we go
+we're going to build a server that lets users make "posts", we'll add persistence, authentication, and authorization to it as we go
 
 ## Setting Up the Express Server
 
@@ -23,15 +24,15 @@ first we need to set up our `package.json` and install some dependencies
 <CH.Code>
 ```bash terminal
 npm init -y
-npm i express express-session morgan npm-run-all nodemon
+npm i postgres zod express express-session morgan npm-run-all
 export PORT=3000
 ```
 ---
 ```json package.json focus=3:4
 {
   "scripts": {
-    "dev:server": "nodemon -e js,mjs,jsx -w server -x 'node server/index.mjs'",
-    "dev": "run-p -s dev:*"
+    "dev": "run-p dev:server",
+    "dev:server": "node --watch --watch-preserve-output server/index.mjs",
   }
 }
 ```
@@ -43,13 +44,13 @@ export PORT=3000
 first import and initialize express
 
 ```js server/index.mjs focus=1:7
-import express from 'express';
+import express from 'express'
 
-const { PORT } = process.env;
+const { PORT } = process.env
 
-const app = express();
+const app = express()
 
-app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`))
 ```
 
 ---
@@ -57,16 +58,16 @@ app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`)
 add our logging middleware first
 
 ```js server/index.mjs focus=2,8
-import express from 'express';
-import morgan from 'morgan';
+import express from 'express'
+import morgan from 'morgan'
 
-const { NODE_ENV, PORT } = process.env;
+const { NODE_ENV, PORT } = process.env
 
-const app = express();
+const app = express()
 
-app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
+app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'))
 
-app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`))
 ```
 
 ---
@@ -74,17 +75,17 @@ app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`)
 in order to handle parsing the body of an http request we need to add some middleware
 
 ```js server/index.mjs focus=8:9
-import express from 'express';
-import morgan from 'morgan';
+import express from 'express'
+import morgan from 'morgan'
 
-const { NODE_ENV, PORT } = process.env;
+const { NODE_ENV, PORT } = process.env
 
-const app = express();
-app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
-app.use(express.json({ strict: true }));
-app.use(express.urlencoded({ extended: false }));
+const app = express()
+app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'))
+app.use(express.json({ strict: true }))
+app.use(express.urlencoded({ extended: false }))
 
-app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`))
 ```
 
 ---
@@ -92,17 +93,17 @@ app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`)
 and also configure the `express-session` middleware
 
 ```js server/index.mjs focus=2,12:31
-import express from 'express';
-import session from 'express-session';
-import morgan from 'morgan';
+import express from 'express'
+import session from 'express-session'
+import morgan from 'morgan'
 
-const { NODE_ENV, PORT } = process.env;
+const { NODE_ENV, PORT } = process.env
 
-const app = express();
+const app = express()
 
-app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
-app.use(express.json({ strict: true }));
-app.use(express.urlencoded({ extended: false }));
+app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'))
+app.use(express.json({ strict: true }))
+app.use(express.urlencoded({ extended: false }))
 app.use(
   session({
     // Force the session id cookie to be set on every response, and reset the expiration countdown.
@@ -124,9 +125,9 @@ app.use(
       secure: 'auto',
     },
   }),
-);
+)
 
-app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`))
 ```
 
 ---
@@ -136,17 +137,17 @@ we can add some routes that update an in-memory list of "posts"
 this usually isn't a great idea but we'll fix it later
 
 ```js server/index.mjs focus=27:37
-import express from 'express';
-import session from 'express-session';
-import morgan from 'morgan';
+import express from 'express'
+import session from 'express-session'
+import morgan from 'morgan'
 
-const { NODE_ENV, PORT } = process.env;
+const { NODE_ENV, PORT } = process.env
 
-const app = express();
+const app = express()
 
-app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
-app.use(express.json({ strict: true }));
-app.use(express.urlencoded({ extended: false }));
+app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'))
+app.use(express.json({ strict: true }))
+app.use(express.urlencoded({ extended: false }))
 app.use(
   session({
     rolling: true,
@@ -160,21 +161,21 @@ app.use(
       secure: 'auto',
     },
   }),
-);
+)
 
-const posts = [];
+const posts = []
 
 app.get('/posts', (req, res) => {
-  res.json(posts);
-});
+  res.json(posts)
+})
 
 app.post('/posts', (req, res) => {
-  const { name, body } = req.body;
-  posts.push({ name, body });
-  res.json(posts);
-});
+  const { name, body } = req.body
+  posts.push({ name, body })
+  res.json(posts)
+})
 
-app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`))
 ```
 
 ---
@@ -182,17 +183,17 @@ app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`)
 and finally, store the user name in a session
 
 ```js server/index.mjs focus=34:43 bg=36,41:43
-import express from 'express';
-import session from 'express-session';
-import morgan from 'morgan';
+import express from 'express'
+import session from 'express-session'
+import morgan from 'morgan'
 
-const { NODE_ENV, PORT } = process.env;
+const { NODE_ENV, PORT } = process.env
 
-const app = express();
+const app = express()
 
-app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
-app.use(express.json({ strict: true }));
-app.use(express.urlencoded({ extended: false }));
+app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'))
+app.use(express.json({ strict: true }))
+app.use(express.urlencoded({ extended: false }))
 
 app.use(
   session({
@@ -207,26 +208,26 @@ app.use(
       secure: 'auto',
     },
   }),
-);
+)
 
-const posts = [];
+const posts = []
 
 app.get('/posts', (req, res) => {
-  res.json(posts);
-});
+  res.json(posts)
+})
 
 app.post('/posts', (req, res) => {
-  const { name, body } = req.body;
-  req.session.user = { name };
-  posts.push({ name, body });
-  res.json(posts);
-});
+  const { name, body } = req.body
+  req.session.user = { name }
+  posts.push({ name, body })
+  res.json(posts)
+})
 
 app.get('/currentUser', (req, res) => {
-  res.json(req.session.user);
-});
+  res.json(req.session.user)
+})
 
-app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`))
 ```
 
 </CH.Scrollycoding>
@@ -241,9 +242,7 @@ curl -v -c sess.cookie localhost:$PORT/posts -d 'name=you' -d 'body=hello world!
 curl -v -b sess.cookie localhost:$PORT/currentUser
 ```
 
-<Callout>
-<Callout.Title>how do cookie sessions work?</Callout.Title>
-
+<Callout collapsed title="how do cookie sessions work?">
 1. we put some randomly generated and very hard to guess gibberish (sometimes called an *opaque* token) in a [signed] cookie for a user
 2. you put that token, along with some data (eg their user id) into a table with an expiration
 3. on every request you look at the token in the cookie [and check it's signature], see if it exists in the db and isnt expired, and return the data (eg the user id)
@@ -259,8 +258,7 @@ To persist our data we'll need a database, and what better choice is there than 
 There are many ways to run Postgres, one of the easiest ways to manage Postgres for development and production is to use Docker. I've provided a `docker-compose.yml` file that will run a Postgres 16 server and expose it on port 5432, and a script that will create a database and user for our application.
 
 ```sh terminal
-npm i postgres
-npm i -D dotenv inquirer
+npm i -D inquirer @dotenvx/dotenvx
 ````
 
 <CH.Code showExpandButton>
@@ -279,225 +277,73 @@ services:
       - 5432:5432
 ````
 
-```js scripts/generate-dotenv.mjs
-// @ts-check
-import path from 'node:path';
-import fs from 'node:fs/promises';
-import crypto from 'node:crypto';
-import dotenv from 'dotenv';
-import inquirer from 'inquirer';
-
-const DOTENV_PATH = path.resolve('.env');
-
-/** validates database name
- * @param {string} str database name
- * @returns {true | string} returns true or an error
- */
-function validName(str) {
-  if (str.length < 4) return 'must be at least 4 characters';
-  if (str !== str.toLowerCase()) return 'must be lowercase';
-  return true;
-}
-
-/** generates a password
- * @param {number} length password length
- * @param {BufferEncoding} type password encoding
- * @returns {string} generated password
- */
-function generatePassword(length, type = 'base64') {
-  return crypto.randomBytes(length).toString(type).replace(/\W/g, '_').toLowerCase();
-}
-
-async function readDotenv() {
-  try {
-    return dotenv.parse(await fs.readFile(DOTENV_PATH, 'utf8'));
-  } catch {
-    return null;
-  }
-}
-
-/**
- * @param {null | Record<string,string | undefined>} config current environment object
- * @returns {Promise<void>} void
- */
-async function createConfig(config) {
-  const packageJson = JSON.parse(await fs.readFile('./package.json', 'utf8'));
-  const packageName = packageJson.name.replace(/\W/g, '_').replace(/__+/g, '').replace(/^_/, '');
-
-  const {
-    ROOT_DATABASE_USER,
-    DATABASE_HOST,
-    DATABASE_NAME,
-    DATABASE_OWNER,
-    PORT,
-    ROOT_URL,
-  } = await inquirer.prompt(
-    [
-      {
-        name: 'ROOT_DATABASE_USER',
-        message: 'superuser database username:',
-        default: 'postgres',
-        prefix: '',
-      },
-      {
-        name: 'DATABASE_HOST',
-        message: 'database host:',
-        default: 'localhost:5432',
-        prefix: '',
-      },
-      {
-        name: 'DATABASE_NAME',
-        message: 'database name:',
-        default: packageName,
-        validate: validName,
-        prefix: '',
-      },
-      {
-        name: 'DATABASE_OWNER',
-        message: 'database username:',
-        default: prompt => prompt.DATABASE_NAME,
-        prefix: '',
-      },
-      {
-        name: 'PORT',
-        message: 'application port:',
-        default: '3000',
-        prefix: '',
-      },
-      {
-        name: 'ROOT_URL',
-        message: 'application url:',
-        default: prompt => `http://localhost:${prompt.PORT}`,
-        prefix: '',
-      },
-    ],
-    Object.assign({}, config, process.env),
-  );
-
-  let PASSWORDS = {
-    ROOT_DATABASE_PASSWORD: config?.ROOT_DATABASE_PASSWORD,
-    DATABASE_OWNER_PASSWORD: config?.DATABASE_OWNER_PASSWORD,
-    SECRET: config?.SECRET,
-  };
-
-  if (!Object.values(PASSWORDS).every(Boolean)) {
-    PASSWORDS = (
-      await inquirer.prompt({
-        name: 'genpwd',
-        message: 'generate passwords?',
-        type: 'confirm',
-        prefix: '',
-      })
-    ).genpwd
-      ? {
-          ROOT_DATABASE_PASSWORD: config?.ROOT_DATABASE_PASSWORD ?? generatePassword(18),
-          DATABASE_OWNER_PASSWORD: config?.DATABASE_OWNER_PASSWORD ?? generatePassword(18),
-          SECRET: config?.SECRET ?? generatePassword(32, 'hex'),
-        }
-      : await inquirer.prompt(
-          [
-            {
-              name: 'ROOT_DATABASE_PASSWORD',
-              default: () => generatePassword(18),
-              prefix: '',
-            },
-            {
-              name: 'DATABASE_OWNER_PASSWORD',
-              default: () => generatePassword(18),
-              prefix: '',
-            },
-            {
-              name: 'SECRET',
-              default: () => generatePassword(32, 'hex'),
-              prefix: '',
-            },
-          ],
-          PASSWORDS,
-        );
-  }
-
-  const envFile = Object.entries({
-    ...config,
-    NODE_ENV: 'development',
-    ROOT_DATABASE_USER: ROOT_DATABASE_USER,
-    ROOT_DATABASE_PASSWORD: PASSWORDS.ROOT_DATABASE_PASSWORD,
-    ROOT_DATABASE_URL: `postgres://${ROOT_DATABASE_USER}:${PASSWORDS.ROOT_DATABASE_PASSWORD}@${DATABASE_HOST}/template1`,
-    DATABASE_HOST: DATABASE_HOST,
-    DATABASE_NAME: DATABASE_NAME,
-    DATABASE_OWNER: DATABASE_OWNER,
-    DATABASE_OWNER_PASSWORD: PASSWORDS.DATABASE_OWNER_PASSWORD,
-    DATABASE_URL: `postgres://${DATABASE_OWNER}:${PASSWORDS.DATABASE_OWNER_PASSWORD}@${DATABASE_HOST}/${DATABASE_NAME}`,
-    SECRET: PASSWORDS.SECRET,
-    PORT,
-    ROOT_URL,
-  });
-    .map(([k, v]) => `${k}=${v}`)
-    .join('\n')
-    .concat('\n');
-
-  await fs.writeFile(DOTENV_PATH, envFile, 'utf8');
-  console.log(`.env file ${config ? 'updated' : 'created'}`);
-}
-
-async function main() {
-  createConfig(await readDotenv());
-}
-
-main();
+```sh .env
+NODE_ENV=development
+PORT=3000
+ROOT_DATABASE_USER=postgres
+ROOT_DATABASE_PASSWORD=postgres
+DATABASE_OWNER=appname
+DATABASE_OWNER_PASSWOD=secret
+DATABASE_NAME=appname
+SECRET=supersecret
+DATABASE_PORT=5432
+DATABASE_HOST=localhost
+DATABASE_URL=postgres://appname:secret@localhost:5432/appname
+ROOT_DATABASE_URL=postgres://postgres:postgres@localhost:5432/template1
 ````
 
 ```js scripts/db-setup.mjs
 // @ts-check
-import postgres from 'postgres';
-import inquirer from 'inquirer';
+import postgres from 'postgres'
+import inquirer from 'inquirer'
 
-const { DATABASE_OWNER, DATABASE_OWNER_PASSWORD, DATABASE_NAME, ROOT_DATABASE_URL } = process.env;
+const { DATABASE_OWNER, DATABASE_OWNER_PASSWORD, DATABASE_NAME, ROOT_DATABASE_URL } = process.env
 
-const RECONNECT_BASE_DELAY = 100;
-const RECONNECT_MAX_DELAY = 30000;
+const RECONNECT_BASE_DELAY = 100
+const RECONNECT_MAX_DELAY = 30000
 
 /**
  * @param {number | undefined} ms
  */
 function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise(resolve => setTimeout(resolve, ms))
 }
 
 if (!ROOT_DATABASE_URL) {
-  console.error('ROOT_DATABASE_URL is not set');
-  process.exit(1);
+  console.error('ROOT_DATABASE_URL is not set')
+  process.exit(1)
 }
 
-const sql = postgres(ROOT_DATABASE_URL);
+const sql = postgres(ROOT_DATABASE_URL)
 
 async function main() {
-  let attempts = 0;
+  let attempts = 0
   // eslint-disable-next-line no-constant-condition
   while (true) {
     try {
-      await sql`select true as "Connection test"`;
-      break;
+      await sql`select true as "Connection test"`
+      break
     } catch (e) {
-      if (e.code === '28P01') throw e;
-      attempts++;
+      if (e.code === '28P01') throw e
+      attempts++
       if (attempts <= 30) {
-        console.log(`Database is not ready yet (attempt ${attempts}): ${e.message}`);
+        console.log(`Database is not ready yet (attempt ${attempts}): ${e.message}`)
       } else {
-        console.log(`Database never came up, aborting :(`);
-        process.exit(1);
+        console.log(`Database never came up, aborting :(`)
+        process.exit(1)
       }
       const delay = Math.floor(
         Math.min(
           RECONNECT_MAX_DELAY,
           RECONNECT_BASE_DELAY * Math.random() * 2 ** attempts,
         ),
-      );
-      await sleep(delay);
+      )
+      await sleep(delay)
     }
   }
 
-  console.log(`DROP DATABASE ${DATABASE_NAME}`);
-  console.log(`DROP ROLE ${DATABASE_OWNER}`);
+  console.log(`DROP DATABASE ${DATABASE_NAME}`)
+  console.log(`DROP ROLE ${DATABASE_OWNER}`)
 
   const { confirm } = process.env.NOCONFIRM
     ? { confirm: true }
@@ -508,43 +354,42 @@ async function main() {
           type: 'confirm',
           prefix: '',
         },
-      ]);
-  if (!confirm) process.exit();
+      ])
+  if (!confirm) process.exit()
 
   try {
-    await sql.unsafe(`drop database if exists ${DATABASE_NAME}`);
-    await sql.unsafe(`drop role if exists ${DATABASE_OWNER}`);
-    await sql.unsafe(`create database ${DATABASE_NAME}`);
-    console.log(`CREATE DATABASE ${DATABASE_NAME}`);
+    await sql.unsafe(`drop database if exists ${DATABASE_NAME}`)
+    await sql.unsafe(`drop role if exists ${DATABASE_OWNER}`)
+    await sql.unsafe(`create database ${DATABASE_NAME}`)
+    console.log(`CREATE DATABASE ${DATABASE_NAME}`)
 
     await sql.unsafe`
       create role ${DATABASE_OWNER} with login
-      password '${DATABASE_OWNER_PASSWORD}' noinherit`;
+      password '${DATABASE_OWNER_PASSWORD}' noinherit`
     console.log(`CREATE ROLE ${DATABASE_OWNER}`)
 
     await sql.unsafe`
       grant all privileges on database ${DATABASE_NAME}
-      to ${DATABASE_OWNER}`;
+      to ${DATABASE_OWNER}`
     console.log(`GRANT ${DATABASE_OWNER}`)
   } catch (e) {
-    console.error(e);
+    console.error(e)
   } finally {
-    await sql.end();
+    await sql.end()
   }
 }
-main();
+main()
 ```
 
 </CH.Code>
 
-```json package.json bg=3:8 focus=3:8 mark=7[61:76]
+```json package.json bg=3:8 focus=3:8
 {
   "scripts": {
-    "setup": "run-s env:init db:up db:setup",
-    "env:init": "node scripts/generate-dotenv.mjs",
+    "setup": "run-s db:up db:setup",
     "db:up": "docker-compose up -d db",
     "db:setup": "node -r dotenv/config scripts/db-setup.mjs",
-    "dev:server": "nodemon -e js,mjs,jsx -w server -x 'node -r dotenv/config server/index.mjs'",
+    "dev:server": "node --watch --watch-preserve-output server/index.mjs",
     "predev": "run-s -s db:up",
     "dev": "run-p -s dev:*"
   }
@@ -553,9 +398,15 @@ main();
 
 ---
 
-now that we have a running postgres cluster first we need to create some tables
+now that we have a running Postgres cluster first we need to create some tables
 
-<CH.Code rows={15}>
+<Callout collapsible title="&quot;cluster?&quot; [vocabulary notes]">
+  Postgres lets you model data in groups of rows and columns, and those rows and columns are grouped in tables tables
+  groups of tables are stored in a schema, by default the 'public' schema is used
+  a database contains many schemas
+  the instance of Postgres running on your system that contains all the databases and 
+</Callout>
+
 ```sql migrations/0010-schemas.sql
 drop schema if exists app_public cascade;
 drop schema if exists app_private cascade;
@@ -566,6 +417,7 @@ create schema app_public;
 create schema app_private;
 
 ````
+
 ```sql migrations/0020-sessions.sql
 create table app_private.sessions (
   sid text primary key,
@@ -600,25 +452,23 @@ create table app_public.posts (
 );
 ```
 
-</CH.Code>
-
 now that we have a `posts` table we can update our application code and store our posts in it
 
 ```js server/index.mjs focus=4,6,8,29:38
-import express from 'express';
-import session from 'express-session';
-import morgan from 'morgan';
-import postgres from 'postgres';
+import express from 'express'
+import session from 'express-session'
+import morgan from 'morgan'
+import postgres from 'postgres'
 
-const { DATABASE_URL, NODE_ENV, PORT } = process.env;
+const { DATABASE_URL, NODE_ENV, PORT } = process.env
 
-const sql = postgres(DATABASE_URL);
+const sql = postgres(DATABASE_URL)
 
-const app = express();
+const app = express()
 
-app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
-app.use(express.json({ strict: true }));
-app.use(express.urlencoded({ extended: false }));
+app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'))
+app.use(express.json({ strict: true }))
+app.use(express.urlencoded({ extended: false }))
 
 app.use(
   session({
@@ -633,24 +483,24 @@ app.use(
       secure: 'auto',
     },
   }),
-);
+)
 
 app.get('/posts', async (req, res) => {
-  res.json(await sql`select * from posts order by created_at desc`);
-});
+  res.json(await sql`select * from posts order by created_at desc`)
+})
 
 app.post('/posts', async (req, res) => {
-  const { name, body } = req.body;
-  req.session.user = { name };
-  await sql`insert into posts (name, body) values (${name}, ${body})`;
-  res.json(await sql`select * from posts order by created_at desc`);
-});
+  const { name, body } = req.body
+  req.session.user = { name }
+  await sql`insert into posts (name, body) values (${name}, ${body})`
+  res.json(await sql`select * from posts order by created_at desc`)
+})
 
 app.get('/currentUser', (req, res) => {
-  res.json(req.session.user);
-});
+  res.json(req.session.user)
+})
 
-app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`))
 ```
 
 the [Postgres](https://github.com/porsager/postgres) adapter we're using provides a [tagged template](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals#tagged_templates) to run our SQL queries.
@@ -661,20 +511,20 @@ it's important to note the syntax for calling tagged template functions doesn't 
 persist our sessions in postgres
 
 ```js server/index.mjs focus=16:17,31
-import express from 'express';
-import session from 'express-session';
-import morgan from 'morgan';
-import postgres from 'postgres';
+import express from 'express'
+import session from 'express-session'
+import morgan from 'morgan'
+import postgres from 'postgres'
 
-const { DATABASE_URL, NODE_ENV, PORT } = process.env;
+const { DATABASE_URL, NODE_ENV, PORT } = process.env
 
-const sql = postgres(DATABASE_URL);
+const sql = postgres(DATABASE_URL)
 
-const app = express();
+const app = express()
 
-app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
-app.use(express.json({ strict: true }));
-app.use(express.urlencoded({ extended: false }));
+app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'))
+app.use(express.json({ strict: true }))
+app.use(express.urlencoded({ extended: false }))
 
 class PgSessionStore extends session.Store {
 }
@@ -693,24 +543,24 @@ app.use(
     },
     store: new PgSessionStore(),
   }),
-);
+)
 
 app.get('/posts', async (req, res) => {
-  res.json(await sql`select * from posts order by created_at desc`);
-});
+  res.json(await sql`select * from posts order by created_at desc`)
+})
 
 app.post('/posts', async (req, res) => {
-  const { name, body } = req.body;
-  req.session.user = { name };
-  await sql`insert into posts (name, body) values (${name}, ${body})`;
-  res.json(await sql`select * from posts order by created_at desc`);
-});
+  const { name, body } = req.body
+  req.session.user = { name }
+  await sql`insert into posts (name, body) values (${name}, ${body})`
+  res.json(await sql`select * from posts order by created_at desc`)
+})
 
 app.get('/currentUser', (req, res) => {
-  res.json(req.session.user);
-});
+  res.json(req.session.user)
+})
 
-app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`))
 ```
 
 ---
@@ -718,31 +568,31 @@ app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`)
 our store needs a method to `set` sessions
 
 ```js server/index.mjs focus=17:26
-import express from 'express';
-import session from 'express-session';
-import morgan from 'morgan';
-import postgres from 'postgres';
+import express from 'express'
+import session from 'express-session'
+import morgan from 'morgan'
+import postgres from 'postgres'
 
-const { DATABASE_URL, NODE_ENV, PORT } = process.env;
+const { DATABASE_URL, NODE_ENV, PORT } = process.env
 
-const sql = postgres(DATABASE_URL);
+const sql = postgres(DATABASE_URL)
 
-const app = express();
+const app = express()
 
-app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
-app.use(express.json({ strict: true }));
-app.use(express.urlencoded({ extended: false }));
+app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'))
+app.use(express.json({ strict: true }))
+app.use(express.urlencoded({ extended: false }))
 
 class PgSessionStore extends session.Store {
   set(sid, session, callback) {
-    if (!session.user) return callback();
+    if (!session.user) return callback()
     sql`
       insert into sessions (sid, user_id, expires)
         values (${sid}, ${session.user.userId}::uuid, ${Number(session.cookie.expires)})
       on conflict (sid) do update set
         user_id = $2,
         expires = now() + interval '14 days'
-    `.then(() => callback(), callback);
+    `.then(() => callback(), callback)
   }
 }
 
@@ -760,24 +610,24 @@ app.use(
     },
     store: new PgSessionStore(),
   }),
-);
+)
 
 app.get('/posts', async (req, res) => {
-  res.json(await sql`select * from posts order by created_at desc`);
-});
-
-app.post('/posts', async (req, res) => {
-  const { name, body } = req.body;
-  req.session.user = { name };
-  await sql`insert into posts (name, body) values (${name}, ${body})`;
-  res.json(await sql`select * from posts order by created_at desc`);
-});
-
-app.get('/currentUser', (req, res) => {
-  res.json(req.session.user);
+  res.json(await sql`select * from posts order by created_at desc`)
 })
 
-app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`));
+app.post('/posts', async (req, res) => {
+  const { name, body } = req.body
+  req.session.user = { name }
+  await sql`insert into posts (name, body) values (${name}, ${body})`
+  res.json(await sql`select * from posts order by created_at desc`)
+})
+
+app.get('/currentUser', (req, res) => {
+  res.json(req.session.user)
+})
+
+app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`))
 ```
 
 ---
@@ -785,31 +635,31 @@ app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`)
 and a method to retrieve sessions
 
 ```js server/index.mjs focus=28:36
-import express from 'express';
-import session from 'express-session';
-import morgan from 'morgan';
-import postgres from 'postgres';
+import express from 'express'
+import session from 'express-session'
+import morgan from 'morgan'
+import postgres from 'postgres'
 
-const { DATABASE_URL, NODE_ENV, PORT } = process.env;
+const { DATABASE_URL, NODE_ENV, PORT } = process.env
 
-const sql = postgres(DATABASE_URL);
+const sql = postgres(DATABASE_URL)
 
-const app = express();
+const app = express()
 
-app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
-app.use(express.json({ strict: true }));
-app.use(express.urlencoded({ extended: false }));
+app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'))
+app.use(express.json({ strict: true }))
+app.use(express.urlencoded({ extended: false }))
 
 class PgSessionStore extends session.Store {
   set(sid, session, callback) {
-    if (!session.user) return callback();
+    if (!session.user) return callback()
     sql`
       insert into sessions (sid, user_id, expires)
         values (${sid}, ${session.user.userId}::uuid, ${Number(session.cookie.expires)})
       on conflict (sid) do update set
         user_id = $2,
         expires = now() + interval '14 days'
-    `.then(() => callback(), callback);
+    `.then(() => callback(), callback)
   }
 
   get(sid, callback) {
@@ -818,8 +668,8 @@ class PgSessionStore extends session.Store {
       from sessions
       where sid = ${sid} and expires > now()
     `.then(([result]) => {
-      callback(null, result || null);
-    }, callback);
+      callback(null, result || null)
+    }, callback)
   }
 }
 
@@ -837,24 +687,24 @@ app.use(
     },
     store: new PgSessionStore(),
   }),
-);
+)
 
 app.get('/posts', async (req, res) => {
-  res.json(await sql`select * from posts order by created_at desc`);
-});
+  res.json(await sql`select * from posts order by created_at desc`)
+})
 
 app.post('/posts', async (req, res) => {
-  const { name, body } = req.body;
-  req.session.user = { name };
-  await sql`insert into posts (name, body) values (${name}, ${body})`;
-  res.json(await sql`select * from posts order by created_at desc`);
-});
+  const { name, body } = req.body
+  req.session.user = { name }
+  await sql`insert into posts (name, body) values (${name}, ${body})`
+  res.json(await sql`select * from posts order by created_at desc`)
+})
 
 app.get('/currentUser', (req, res) => {
-  res.json(req.session.user);
-});
+  res.json(req.session.user)
+})
 
-app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`))
 ```
 
 ---
@@ -864,31 +714,31 @@ a method to update the session expiration
 and a method to delete sessions
 
 ```js server/index.mjs focus=38:52
-import express from 'express';
-import session from 'express-session';
-import morgan from 'morgan';
-import postgres from 'postgres';
+import express from 'express'
+import session from 'express-session'
+import morgan from 'morgan'
+import postgres from 'postgres'
 
-const { DATABASE_URL, NODE_ENV, PORT } = process.env;
+const { DATABASE_URL, NODE_ENV, PORT } = process.env
 
-const sql = postgres(DATABASE_URL);
+const sql = postgres(DATABASE_URL)
 
-const app = express();
+const app = express()
 
-app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
-app.use(express.json({ strict: true }));
-app.use(express.urlencoded({ extended: false }));
+app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'))
+app.use(express.json({ strict: true }))
+app.use(express.urlencoded({ extended: false }))
 
 class PgSessionStore extends session.Store {
   set(sid, session, callback) {
-    if (!session.user) return callback();
+    if (!session.user) return callback()
     sql`
       insert into sessions (sid, user_id, expires)
         values (${sid}, ${session.user.userId}::uuid, ${Number(session.cookie.expires)})
       on conflict (sid) do update set
         user_id = $2,
         expires = now() + interval '14 days'
-    `.then(() => callback(), callback);
+    `.then(() => callback(), callback)
   }
 
   get(sid, callback) {
@@ -897,8 +747,8 @@ class PgSessionStore extends session.Store {
       from sessions
       where sid = ${sid} and expires > now()
     `.then(([result]) => {
-      callback(null, result || null);
-    }, callback);
+      callback(null, result || null)
+    }, callback)
   }
 
   touch(sid, session, callback) {
@@ -907,14 +757,14 @@ class PgSessionStore extends session.Store {
       set
         expires = now() + interval '14 days'
       where sid = ${sid}
-    `.then(() => callback(), callback);
+    `.then(() => callback(), callback)
   }
 
   destroy(sid, callback) {
     sql`
       delete from sessions
       where sid = ${sid}
-    `.then(() => callback(), callback);
+    `.then(() => callback(), callback)
   }
 }
 
@@ -932,24 +782,24 @@ app.use(
     },
     store: new PgSessionStore(),
   }),
-);
+)
 
 app.get('/posts', async (req, res) => {
-  res.json(await sql`select * from posts order by created_at desc`);
-});
+  res.json(await sql`select * from posts order by created_at desc`)
+})
 
 app.post('/posts', async (req, res) => {
-  const { name, body } = req.body;
-  req.session.user = { name };
-  await sql`insert into posts (name, body) values (${name}, ${body})`;
-  res.json(await sql`select * from posts order by created_at desc`);
-});
+  const { name, body } = req.body
+  req.session.user = { name }
+  await sql`insert into posts (name, body) values (${name}, ${body})`
+  res.json(await sql`select * from posts order by created_at desc`)
+})
 
 app.get('/currentUser', (req, res) => {
-  res.json(req.session.user);
-});
+  res.json(req.session.user)
+})
 
-app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`))
 ```
 
 </CH.Scrollycoding>
@@ -965,19 +815,19 @@ this is suddenly a lot of different code in one file, so let's break it up into 
 
 <CH.Code showExpandButton>
 ```js server.mjs
-import express from 'express';
-import session from 'express-session';
-import morgan from 'morgan';
-import { PgSessionStore } from './PgSessionStore';
+import express from 'express'
+import session from 'express-session'
+import morgan from 'morgan'
+import { PgSessionStore } from './PgSessionStore'
 import posts from './posts'
 
-const { NODE_ENV, PORT } = process.env;
+const { NODE_ENV, PORT } = process.env
 
-const app = express();
+const app = express()
 
-app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
-app.use(express.json({ strict: true }));
-app.use(express.urlencoded({ extended: false }));
+app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'))
+app.use(express.json({ strict: true }))
+app.use(express.urlencoded({ extended: false }))
 
 app.use(session({
   rolling: true,
@@ -991,28 +841,28 @@ app.use(session({
     secure: 'auto',
   },
   store: new PgSessionStore(),
-}));
+}))
 
-app.use(posts);
+app.use(posts)
 
-app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`))
 
 ````
 
 ```js PgSessionStore.mjs
-import session from 'express-session';
-import { sql } from './db';
+import session from 'express-session'
+import { sql } from './db'
 
 export class PgSessionStore extends session.Store {
   set(sid, session, callback) {
-    if (!session.user) return callback();
+    if (!session.user) return callback()
     sql`
       insert into sessions (sid, user_id, expires)
         values (${sid}, ${session.user.userId}::uuid, ${Number(session.cookie.expires)})
       on conflict (sid) do update set
         user_id = $2,
         expires = now() + interval '14 days'
-    `.then(() => callback(), callback);
+    `.then(() => callback(), callback)
   }
 
   get(sid, callback) {
@@ -1022,7 +872,7 @@ export class PgSessionStore extends session.Store {
       where sid = ${sid} and expires > now()
     `.then(([result]) => {
       callback(null, result || null)
-    }, callback);
+    }, callback)
   }
 
   touch(sid, session, callback) {
@@ -1031,41 +881,41 @@ export class PgSessionStore extends session.Store {
       set
         expires = now() + interval '14 days'
       where sid = ${sid}
-    `.then(() => callback(), callback);
+    `.then(() => callback(), callback)
   }
 
   destroy(sid, callback) {
     sql`
       delete from sessions
       where sid = ${sid}
-    `.then(() => callback(), callback);
+    `.then(() => callback(), callback)
   }
 }
 ````
 
 ```js posts.mjs
-import { Router } from 'express';
+import { Router } from 'express'
 
-const router = Router();
+const router = Router()
 
 router.get('/posts', async (req, res) => {
-  res.json(await sql`select * from posts order by created_at desc`);
-});
+  res.json(await sql`select * from posts order by created_at desc`)
+})
 
 router.post('/posts', async (req, res) => {
-  const { name, body } = req.body;
-  req.session.user = { name };
-  await sql`insert into posts (name, body) values (${name}, ${body})`;
-  res.json(await sql`select * from posts order by created_at desc`);
-});
+  const { name, body } = req.body
+  req.session.user = { name }
+  await sql`insert into posts (name, body) values (${name}, ${body})`
+  res.json(await sql`select * from posts order by created_at desc`)
+})
 
-export default router;
+export default router
 ```
 
 ```js db.mjs
-import postgres from 'postgres';
+import postgres from 'postgres'
 
-export const sql = postgres(process.env.DATABASE_URL);
+export const sql = postgres(process.env.DATABASE_URL)
 ```
 
 </CH.Code>
@@ -1082,14 +932,14 @@ npm i argon2
 create router and add some simple validations
 
 ```js auth.mjs
-import { Router } from 'express';
-import argon from 'argon2';
-import { sql } from './db';
+import { Router } from 'express'
+import argon from 'argon2'
+import { sql } from './db'
 
 const argonOpts = {
   type: argon.argon2id,
   hashLength: 40,
-};
+}
 
 const validate = {
   username(value) {
@@ -1101,15 +951,15 @@ const validate = {
     if (value.length < 8) return 'password must be at least 8 characters'
     // TODO: check against zxcvbn
   },
-};
+}
 
-const router = Router();
+const router = Router()
 
 router.get('/currentUser', (req, res) => {
-  res.json({ data: { currentUser: req.session.user || null } });
-});
+  res.json({ data: { currentUser: req.session.user || null } })
+})
 
-export default router;
+export default router
 ```
 
 ---
@@ -1117,14 +967,14 @@ export default router;
 add the `/register` route
 
 ```js auth.mjs focus=28:41
-import { Router } from 'express';
-import argon from 'argon2';
-import { sql } from './db';
+import { Router } from 'express'
+import argon from 'argon2'
+import { sql } from './db'
 
 const argonOpts = {
   type: argon.argon2id,
   hashLength: 40,
-};
+}
 
 const validate = {
   username(value) {
@@ -1136,30 +986,30 @@ const validate = {
     if (value.length < 8) return 'password must be at least 8 characters'
     // TODO: check against zxcvbn
   },
-};
+}
 
-const router = Router();
+const router = Router()
 
 router.get('/currentUser', (req, res) => {
-  res.json({ data: { currentUser: req.session.user || null } });
-});
+  res.json({ data: { currentUser: req.session.user || null } })
+})
 
 router.post('/register', (req, res) => {
-  if (req.session.user) return res.redirect('/');
-  const { username, password, confirmPassword } = req.body;
+  if (req.session.user) return res.redirect('/')
+  const { username, password, confirmPassword } = req.body
 
   req.session.regenerate(async () => {
     const [user] = await sql`
       insert into app_public.users (username, password_hash)
       values (${username}, ${await argon.hash(password, argonOpts)})
       returning *
-    `;
-    req.session.user = user;
-    res.json({ data: { currentUser: user } });
-  });
-});
+    `
+    req.session.user = user
+    res.json({ data: { currentUser: user } })
+  })
+})
 
-export default router;
+export default router
 ```
 
 ---
@@ -1167,14 +1017,14 @@ export default router;
 add some basic field validations
 
 ```js auth.mjs focus=32:45
-import { Router } from 'express';
-import argon from 'argon2';
-import { sql } from './db';
+import { Router } from 'express'
+import argon from 'argon2'
+import { sql } from './db'
 
 const argonOpts = {
   type: argon.argon2id,
   hashLength: 40,
-};
+}
 
 const validate = {
   username(value) {
@@ -1186,31 +1036,31 @@ const validate = {
     if (value.length < 8) return 'password must be at least 8 characters'
     // TODO: check against zxcvbn
   },
-};
+}
 
-const router = Router();
+const router = Router()
 
 router.get('/currentUser', (req, res) => {
-  res.json({ data: { currentUser: req.session.user || null } });
-});
+  res.json({ data: { currentUser: req.session.user || null } })
+})
 
 router.post('/register', (req, res) => {
-  if (req.session.user) return res.redirect('/');
-  const { username, password, confirmPassword } = req.body;
+  if (req.session.user) return res.redirect('/')
+  const { username, password, confirmPassword } = req.body
 
-  const fieldErrors = {};
-  if (!username) fieldErrors.username = 'missing username';
-  const validUsername = validate.username(username);
-  if (!validUsername) fieldErrors.username = validUsername;
+  const fieldErrors = {}
+  if (!username) fieldErrors.username = 'missing username'
+  const validUsername = validate.username(username)
+  if (!validUsername) fieldErrors.username = validUsername
 
-  if (!password) fieldErrors.password = 'missing password';
-  if (!confirmPassword) fieldErrors.confirmPassword = 'please re-type your password';
-  if (password !== confirmPassword) fieldErrors.confirmPassword = 'passwords dont match';
-  const validPassword = validate.password(password);
-  if (!validPassword) fieldErrors.password = validPassword;
+  if (!password) fieldErrors.password = 'missing password'
+  if (!confirmPassword) fieldErrors.confirmPassword = 'please re-type your password'
+  if (password !== confirmPassword) fieldErrors.confirmPassword = 'passwords dont match'
+  const validPassword = validate.password(password)
+  if (!validPassword) fieldErrors.password = validPassword
 
   if (Object.keys(fieldErrors).some(Boolean)) {
-    return res.status(422).json({ error: { fieldErrors } });
+    return res.status(422).json({ error: { fieldErrors } })
   }
 
   req.session.regenerate(async () => {
@@ -1218,13 +1068,13 @@ router.post('/register', (req, res) => {
       insert into app_public.users (username, password_hash)
       values (${username}, ${await argon.hash(password, argonOpts)})
       returning *
-    `;
-    req.session.user = user;
-    res.json({ data: { currentUser: user } });
-  });
-});
+    `
+    req.session.user = user
+    res.json({ data: { currentUser: user } })
+  })
+})
 
-export default router;
+export default router
 ```
 
 ---
@@ -1232,15 +1082,15 @@ export default router;
 some error handling on conflicting usernames
 
 ```js auth.mjs focus=49:69
-import { Router } from 'express';
-import argon from 'argon2';
-import { PostgresError } from 'postgres';
-import { sql } from './db';
+import { Router } from 'express'
+import argon from 'argon2'
+import { PostgresError } from 'postgres'
+import { sql } from './db'
 
 const argonOpts = {
   type: argon.argon2id,
   hashLength: 40,
-};
+}
 
 const validate = {
   username(value) {
@@ -1252,31 +1102,31 @@ const validate = {
     if (value.length < 8) return 'password must be at least 8 characters'
     // TODO: check against zxcvbn
   },
-};
+}
 
-const router = Router();
+const router = Router()
 
 router.get('/currentUser', (req, res) => {
-  res.json({ data: { currentUser: req.session.user || null } });
-});
+  res.json({ data: { currentUser: req.session.user || null } })
+})
 
 router.post('/register', (req, res) => {
-  if (req.session.user) return res.redirect('/');
-  const { username, password, confirmPassword } = req.body;
+  if (req.session.user) return res.redirect('/')
+  const { username, password, confirmPassword } = req.body
 
-  const fieldErrors = {};
-  if (!username) fieldErrors.username = 'missing username';
-  const validUsername = validate.username(username);
-  if (!validUsername) fieldErrors.username = validUsername;
+  const fieldErrors = {}
+  if (!username) fieldErrors.username = 'missing username'
+  const validUsername = validate.username(username)
+  if (!validUsername) fieldErrors.username = validUsername
 
-  if (!password) fieldErrors.password = 'missing password';
-  if (!confirmPassword) fieldErrors.confirmPassword = 'please re-type your password';
-  if (password !== confirmPassword) fieldErrors.confirmPassword = 'passwords dont match';
-  const validPassword = validate.password(password);
-  if (!validPassword) fieldErrors.password = validPassword;
+  if (!password) fieldErrors.password = 'missing password'
+  if (!confirmPassword) fieldErrors.confirmPassword = 'please re-type your password'
+  if (password !== confirmPassword) fieldErrors.confirmPassword = 'passwords dont match'
+  const validPassword = validate.password(password)
+  if (!validPassword) fieldErrors.password = validPassword
 
   if (Object.keys(fieldErrors).some(Boolean)) {
-    return res.status(422).json({ error: { fieldErrors } });
+    return res.status(422).json({ error: { fieldErrors } })
   }
 
   req.session.regenerate(async () => {
@@ -1285,9 +1135,9 @@ router.post('/register', (req, res) => {
         insert into app_public.users (username, password_hash)
         values (${username}, ${await argon.hash(password, argonOpts)})
         returning *
-      `;
-      req.session.user = user;
-      res.json({ data: { currentUser: user } });
+      `
+      req.session.user = user
+      res.json({ data: { currentUser: user } })
     } catch (e) {
       if (
         e instanceof PostgresError &&
@@ -1296,15 +1146,15 @@ router.post('/register', (req, res) => {
       ) {
         return res.status(422).json({
           error: { fieldErrors: { username: 'username already taken' } },
-        });
+        })
       }
-      console.error(e);
-      res.status(500).json({ error: 'there was an error processing your request' });
+      console.error(e)
+      res.status(500).json({ error: 'there was an error processing your request' })
     }
-  });
-});
+  })
+})
 
-export default router;
+export default router
 ```
 
 ---
@@ -1312,15 +1162,15 @@ export default router;
 now we can start on the login route
 
 ```js auth.mjs focus=73:103
-import { Router } from 'express';
-import argon from 'argon2';
-import { PostgresError } from 'postgres';
-import { sql } from './db';
+import { Router } from 'express'
+import argon from 'argon2'
+import { PostgresError } from 'postgres'
+import { sql } from './db'
 
 const argonOpts = {
   type: argon.argon2id,
   hashLength: 40,
-};
+}
 
 const validate = {
   username(value) {
@@ -1332,31 +1182,31 @@ const validate = {
     if (value.length < 8) return 'password must be at least 8 characters'
     // TODO: check against zxcvbn
   },
-};
+}
 
-const router = Router();
+const router = Router()
 
 router.get('/currentUser', (req, res) => {
-  res.json({ data: { currentUser: req.session.user || null } });
-});
+  res.json({ data: { currentUser: req.session.user || null } })
+})
 
 router.post('/register', (req, res) => {
-  if (req.session.user) return res.redirect('/');
-  const { username, password, confirmPassword } = req.body;
+  if (req.session.user) return res.redirect('/')
+  const { username, password, confirmPassword } = req.body
 
-  const fieldErrors = {};
-  if (!username) fieldErrors.username = 'missing username';
-  const validUsername = validate.username(username);
-  if (!validUsername) fieldErrors.username = validUsername;
+  const fieldErrors = {}
+  if (!username) fieldErrors.username = 'missing username'
+  const validUsername = validate.username(username)
+  if (!validUsername) fieldErrors.username = validUsername
 
-  if (!password) fieldErrors.password = 'missing password';
-  if (!confirmPassword) fieldErrors.confirmPassword = 'please re-type your password';
-  if (password !== confirmPassword) fieldErrors.confirmPassword = 'passwords dont match';
-  const validPassword = validate.password(password);
-  if (!validPassword) fieldErrors.password = validPassword;
+  if (!password) fieldErrors.password = 'missing password'
+  if (!confirmPassword) fieldErrors.confirmPassword = 'please re-type your password'
+  if (password !== confirmPassword) fieldErrors.confirmPassword = 'passwords dont match'
+  const validPassword = validate.password(password)
+  if (!validPassword) fieldErrors.password = validPassword
 
   if (Object.keys(fieldErrors).some(Boolean)) {
-    return res.status(422).json({ error: { fieldErrors } });
+    return res.status(422).json({ error: { fieldErrors } })
   }
 
   req.session.regenerate(async () => {
@@ -1365,9 +1215,9 @@ router.post('/register', (req, res) => {
         insert into app_public.users (username, password_hash)
         values (${username}, ${await argon.hash(password, argonOpts)})
         returning *
-      `;
-      req.session.user = user;
-      res.json({ data: { currentUser: user } });
+      `
+      req.session.user = user
+      res.json({ data: { currentUser: user } })
     } catch (e) {
       if (
         e instanceof PostgresError &&
@@ -1376,17 +1226,17 @@ router.post('/register', (req, res) => {
       ) {
         return res.status(422).json({
           error: { fieldErrors: { username: 'username already taken' } },
-        });
+        })
       }
-      console.error(e);
-      res.status(500).json({ error: 'there was an error processing your request' });
+      console.error(e)
+      res.status(500).json({ error: 'there was an error processing your request' })
     }
-  });
-});
+  })
+})
 
 router.post('/login', (req, res) => {
-  if (req.session.user) return res.redirect('/');
-  const { username, password } = req.body;
+  if (req.session.user) return res.redirect('/')
+  const { username, password } = req.body
 
   req.session.regenerate(async () => {
     try {
@@ -1394,29 +1244,29 @@ router.post('/login', (req, res) => {
         select user_id, username, password_hash
         from app_public.users
         where username = ${username}
-      `;
+      `
 
       if (!userWithPass) {
-        return res.status(401).json({ error: { formErrors: 'Invalid username or password' } });
+        return res.status(401).json({ error: { formErrors: 'Invalid username or password' } })
       }
 
-      const { password_hash, ...user } = userWithPass;
-      const matches = await argon.verify(password_hash, password, argonOpts);
+      const { password_hash, ...user } = userWithPass
+      const matches = await argon.verify(password_hash, password, argonOpts)
 
       if (!matches) {
-        return res.status(401).json({ error: { formErrors: 'Invalid username or password' } });
+        return res.status(401).json({ error: { formErrors: 'Invalid username or password' } })
       }
 
-      req.session.user = user;
-      req.session.save(() => res.json({ data: { currentUser: user } }));
+      req.session.user = user
+      req.session.save(() => res.json({ data: { currentUser: user } }))
     } catch (e) {
-      console.error(e);
-      res.status(500).json({ error: 'there was an error processing your request' });
+      console.error(e)
+      res.status(500).json({ error: 'there was an error processing your request' })
     }
-  });
-});
+  })
+})
 
-export default router;
+export default router
 ```
 
 ---
@@ -1426,15 +1276,15 @@ and again with some basic validations
 plz use [`zod`](https://zod.dev)
 
 ```js auth.mjs focus=77:82
-import { Router } from 'express';
-import argon from 'argon2';
-import { PostgresError } from 'postgres';
-import { sql } from './db';
+import { Router } from 'express'
+import argon from 'argon2'
+import { PostgresError } from 'postgres'
+import { sql } from './db'
 
 const argonOpts = {
   type: argon.argon2id,
   hashLength: 40,
-};
+}
 
 const validate = {
   username(value) {
@@ -1446,31 +1296,31 @@ const validate = {
     if (value.length < 8) return 'password must be at least 8 characters'
     // TODO: check against zxcvbn
   },
-};
+}
 
-const router = Router();
+const router = Router()
 
 router.get('/currentUser', (req, res) => {
-  res.json({ data: { currentUser: req.session.user || null } });
-});
+  res.json({ data: { currentUser: req.session.user || null } })
+})
 
 router.post('/register', (req, res) => {
-  if (req.session.user) return res.redirect('/');
-  const { username, password, confirmPassword } = req.body;
+  if (req.session.user) return res.redirect('/')
+  const { username, password, confirmPassword } = req.body
 
-  const fieldErrors = {};
-  if (!username) fieldErrors.username = 'missing username';
-  const validUsername = validate.username(username);
-  if (!validUsername) fieldErrors.username = validUsername;
+  const fieldErrors = {}
+  if (!username) fieldErrors.username = 'missing username'
+  const validUsername = validate.username(username)
+  if (!validUsername) fieldErrors.username = validUsername
 
-  if (!password) fieldErrors.password = 'missing password';
-  if (!confirmPassword) fieldErrors.confirmPassword = 'please re-type your password';
-  if (password !== confirmPassword) fieldErrors.confirmPassword = 'passwords dont match';
-  const validPassword = validate.password(password);
-  if (!validPassword) fieldErrors.password = validPassword;
+  if (!password) fieldErrors.password = 'missing password'
+  if (!confirmPassword) fieldErrors.confirmPassword = 'please re-type your password'
+  if (password !== confirmPassword) fieldErrors.confirmPassword = 'passwords dont match'
+  const validPassword = validate.password(password)
+  if (!validPassword) fieldErrors.password = validPassword
 
   if (Object.keys(fieldErrors).some(Boolean)) {
-    return res.status(422).json({ error: { fieldErrors } });
+    return res.status(422).json({ error: { fieldErrors } })
   }
 
   req.session.regenerate(async () => {
@@ -1479,9 +1329,9 @@ router.post('/register', (req, res) => {
         insert into app_public.users (username, password_hash)
         values (${username}, ${await argon.hash(password, argonOpts)})
         returning *
-      `;
-      req.session.user = user;
-      res.json({ data: { currentUser: user } });
+      `
+      req.session.user = user
+      res.json({ data: { currentUser: user } })
     } catch (e) {
       if (
         e instanceof PostgresError &&
@@ -1490,23 +1340,23 @@ router.post('/register', (req, res) => {
       ) {
         return res.status(422).json({
           error: { fieldErrors: { username: 'username already taken' } },
-        });
+        })
       }
-      console.error(e);
-      res.status(500).json({ error: 'there was an error processing your request' });
+      console.error(e)
+      res.status(500).json({ error: 'there was an error processing your request' })
     }
-  });
-});
+  })
+})
 
 router.post('/login', (req, res) => {
-  if (req.session.user) return res.redirect('/');
-  const { username, password } = req.body;
+  if (req.session.user) return res.redirect('/')
+  const { username, password } = req.body
 
-  const fieldErrors = {};
-  if (!username) fieldErrors.username = 'missing username';
-  if (!password) fieldErrors.password = 'missing password';
+  const fieldErrors = {}
+  if (!username) fieldErrors.username = 'missing username'
+  if (!password) fieldErrors.password = 'missing password'
   if (Object.keys(fieldErrors).some(Boolean)) {
-    return res.status(422).json({ error: { fieldErrors } });
+    return res.status(422).json({ error: { fieldErrors } })
   }
 
   req.session.regenerate(async () => {
@@ -1515,45 +1365,45 @@ router.post('/login', (req, res) => {
         select user_id, username, password_hash
         from app_public.users
         where username = ${username}
-      `;
+      `
 
       if (!userWithPass) {
-        return res.status(401).json({ error: { formErrors: 'Invalid username or password' } });
+        return res.status(401).json({ error: { formErrors: 'Invalid username or password' } })
       }
 
-      const { password_hash, ...user } = userWithPass;
-      const matches = await argon.verify(password_hash, password, argonOpts);
+      const { password_hash, ...user } = userWithPass
+      const matches = await argon.verify(password_hash, password, argonOpts)
 
       if (!matches) {
-        return res.status(401).json({ error: { formErrors: 'Invalid username or password' } });
+        return res.status(401).json({ error: { formErrors: 'Invalid username or password' } })
       }
 
-      req.session.user = user;
-      req.session.save(() => res.json({ data: { currentUser: user } }));
+      req.session.user = user
+      req.session.save(() => res.json({ data: { currentUser: user } }))
     } catch (e) {
-      console.error(e);
-      res.status(500).json({ error: 'there was an error processing your request' });
+      console.error(e)
+      res.status(500).json({ error: 'there was an error processing your request' })
     }
-  });
-});
+  })
+})
 
-export default router;
+export default router
 ```
 
 ---
 
 the last piece is the logout route
 
-```js auth.mjs focus=112:121
-import { Router } from 'express';
-import argon from 'argon2';
-import { PostgresError } from 'postgres';
-import { sql } from './db';
+```js auth.mjs focus=111:120
+import { Router } from 'express'
+import argon from 'argon2'
+import { PostgresError } from 'postgres'
+import { sql } from './db'
 
 const argonOpts = {
   type: argon.argon2id,
   hashLength: 40,
-};
+}
 
 const validate = {
   username(value) {
@@ -1565,31 +1415,31 @@ const validate = {
     if (value.length < 8) return 'password must be at least 8 characters'
     // TODO: check against zxcvbn
   },
-};
+}
 
-const router = Router();
+const router = Router()
 
 router.get('/currentUser', (req, res) => {
-  res.json({ data: { currentUser: req.session.user || null } });
-});
+  res.json({ data: { currentUser: req.session.user || null } })
+})
 
 router.post('/register', (req, res) => {
-  if (req.session.user) return res.redirect('/');
-  const { username, password, confirmPassword } = req.body;
-  const fieldErrors = {};
+  if (req.session.user) return res.redirect('/')
+  const { username, password, confirmPassword } = req.body
+  const fieldErrors = {}
 
-  if (!username) fieldErrors.username = 'missing username';
-  const validUsername = validate.username(username);
-  if (!validUsername) fieldErrors.username = validUsername;
+  if (!username) fieldErrors.username = 'missing username'
+  const validUsername = validate.username(username)
+  if (!validUsername) fieldErrors.username = validUsername
 
-  if (!password) fieldErrors.password = 'missing password';
-  if (!confirmPassword) fieldErrors.confirmPassword = 'please re-type your password';
-  if (password !== confirmPassword) fieldErrors.confirmPassword = 'passwords dont match';
-  const validPassword = validate.password(password);
-  if (!validPassword) fieldErrors.password = validPassword;
+  if (!password) fieldErrors.password = 'missing password'
+  if (!confirmPassword) fieldErrors.confirmPassword = 'please re-type your password'
+  if (password !== confirmPassword) fieldErrors.confirmPassword = 'passwords dont match'
+  const validPassword = validate.password(password)
+  if (!validPassword) fieldErrors.password = validPassword
 
   if (Object.keys(fieldErrors).some(Boolean)) {
-    return res.status(422).json({ error: { fieldErrors } });
+    return res.status(422).json({ error: { fieldErrors } })
   }
 
   req.session.regenerate(async () => {
@@ -1598,9 +1448,9 @@ router.post('/register', (req, res) => {
         insert into app_public.users (username, password_hash)
         values (${username}, ${await argon.hash(password, argonOpts)})
         returning *
-      `;
-      req.session.user = user;
-      res.json({ data: { currentUser: user } });
+      `
+      req.session.user = user
+      res.json({ data: { currentUser: user } })
     } catch (e) {
       if (
         e instanceof PostgresError &&
@@ -1609,22 +1459,22 @@ router.post('/register', (req, res) => {
       ) {
         return res.status(422).json({
           error: { fieldErrors: { username: 'username already taken' } },
-        });
+        })
       }
-      console.error(e);
-      res.status(500).json({ error: 'there was an error processing your request' });
+      console.error(e)
+      res.status(500).json({ error: 'there was an error processing your request' })
     }
-  });
-});
+  })
+})
 
 router.post('/login', (req, res) => {
-  if (req.session.user) return res.redirect('/');
-  const { username, password } = req.body;
-  const fieldErrors = {};
-  if (!username) fieldErrors.username = 'missing username';
-  if (!password) fieldErrors.password = 'missing password';
+  if (req.session.user) return res.redirect('/')
+  const { username, password } = req.body
+  const fieldErrors = {}
+  if (!username) fieldErrors.username = 'missing username'
+  if (!password) fieldErrors.password = 'missing password'
   if (Object.keys(fieldErrors).some(Boolean)) {
-    return res.status(422).json({ error: { fieldErrors } });
+    return res.status(422).json({ error: { fieldErrors } })
   }
 
   req.session.regenerate(async () => {
@@ -1633,40 +1483,40 @@ router.post('/login', (req, res) => {
         select user_id, username, password_hash
         from app_public.users
         where username = ${username}
-      `;
+      `
 
       if (!userWithPass) {
-        return res.status(401).json({ error: { formErrors: 'Invalid username or password' } });
+        return res.status(401).json({ error: { formErrors: 'Invalid username or password' } })
       }
 
-      const { password_hash, ...user } = userWithPass;
-      const matches = await argon.verify(password_hash, password, argonOpts);
+      const { password_hash, ...user } = userWithPass
+      const matches = await argon.verify(password_hash, password, argonOpts)
 
       if (!matches) {
-        return res.status(401).json({ error: { formErrors: 'Invalid username or password' } });
+        return res.status(401).json({ error: { formErrors: 'Invalid username or password' } })
       }
 
-      req.session.user = user;
-      req.session.save(() => res.json({ data: { currentUser: user } }));
+      req.session.user = user
+      req.session.save(() => res.json({ data: { currentUser: user } }))
     } catch (e) {
-      console.error(e);
-      res.status(500).json({ error: 'there was an error processing your request' });
+      console.error(e)
+      res.status(500).json({ error: 'there was an error processing your request' })
     }
-  });
-});
+  })
+})
 
 router.post('/logout', (req, res, next) => {
-  req.session.user = null;
+  req.session.user = null
   req.session.save(err => {
-    if (err) next(err);
+    if (err) next(err)
     req.session.regenerate(err => {
-      if (err) next(err);
-      res.redirect('/');
-    });
-  });
-});
+      if (err) next(err)
+      res.redirect('/')
+    })
+  })
+})
 
-export default router;
+export default router
 ```
 
 ---
@@ -1674,20 +1524,20 @@ export default router;
 don't forget to add the new auth router to the express instance
 
 ```js server.mjs focus=6,33
-import express from 'express';
-import session from 'express-session';
-import morgan from 'morgan';
-import { PgSessionStore } from './PgSessionStore';
-import posts from './posts';
+import express from 'express'
+import session from 'express-session'
+import morgan from 'morgan'
+import { PgSessionStore } from './PgSessionStore'
+import posts from './posts'
 import auth from './auth'
 
-const { NODE_ENV, PORT } = process.env;
+const { NODE_ENV, PORT } = process.env
 
-const app = express();
+const app = express()
 
-app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
-app.use(express.json({ strict: true }));
-app.use(express.urlencoded({ extended: false }));
+app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'))
+app.use(express.json({ strict: true }))
+app.use(express.urlencoded({ extended: false }))
 
 app.use(
   session({
@@ -1703,12 +1553,12 @@ app.use(
     },
     store: new PgSessionStore(),
   }),
-);
+)
 
-app.use(posts);
-app.use(auth);
+app.use(posts)
+app.use(auth)
 
-app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`server running at http://localhost:${PORT}`))
 ```
 
 </CH.Scrollycoding>
@@ -1723,8 +1573,8 @@ in order to leverage Postgres Row-Level-Security we need a `visitor` role with l
 <CH.Code showExpandButton rows={15}>
 ```js scripts/db-setup.mjs focus=86:95
 // @ts-check
-import postgres from 'postgres';
-import inquirer from 'inquirer';
+import postgres from 'postgres'
+import inquirer from 'inquirer'
 
 const {
   DATABASE_OWNER,
@@ -1734,51 +1584,51 @@ const {
   DATABASE_VISITOR,
   DATABASE_AUTHENTICATOR,
   DATABASE_AUTHENTICATOR_PASSWORD
-} = process.env;
+} = process.env
 
-const RECONNECT_BASE_DELAY = 100;
-const RECONNECT_MAX_DELAY = 30000;
+const RECONNECT_BASE_DELAY = 100
+const RECONNECT_MAX_DELAY = 30000
 
 /** @param {number | undefined} ms */
 function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise(resolve => setTimeout(resolve, ms))
 }
 
 if (!ROOT_DATABASE_URL) {
-  console.error('ROOT_DATABASE_URL is not set');
-  process.exit(1);
+  console.error('ROOT_DATABASE_URL is not set')
+  process.exit(1)
 }
 
-const sql = postgres(ROOT_DATABASE_URL);
+const sql = postgres(ROOT_DATABASE_URL)
 
 async function main() {
-  let attempts = 0;
+  let attempts = 0
   // eslint-disable-next-line no-constant-condition
   while (true) {
     try {
-      await sql`select true as "Connection test"`;
-      break;
+      await sql`select true as "Connection test"`
+      break
     } catch (e) {
-      if (e.code === '28P01') throw e;
-      attempts++;
+      if (e.code === '28P01') throw e
+      attempts++
       if (attempts <= 30) {
-        console.log(`Database is not ready yet (attempt ${attempts}): ${e.message}`);
+        console.log(`Database is not ready yet (attempt ${attempts}): ${e.message}`)
       } else {
-        console.log(`Database never came up, aborting :(`);
-        process.exit(1);
+        console.log(`Database never came up, aborting :(`)
+        process.exit(1)
       }
       const delay = Math.floor(
         Math.min(
           RECONNECT_MAX_DELAY,
           RECONNECT_BASE_DELAY * Math.random() * 2 ** attempts,
         ),
-      );
-      await sleep(delay);
+      )
+      await sleep(delay)
     }
   }
 
-  console.log(`DROP DATABASE ${DATABASE_NAME}`);
-  console.log(`DROP ROLE ${DATABASE_OWNER}`);
+  console.log(`DROP DATABASE ${DATABASE_NAME}`)
+  console.log(`DROP ROLE ${DATABASE_OWNER}`)
 
   const { confirm } = process.env.NOCONFIRM
     ? { confirm: true }
@@ -1789,64 +1639,64 @@ async function main() {
         type: 'confirm',
         prefix: '',
       },
-  ]);
-  if (!confirm) process.exit();
+  ])
+  if (!confirm) process.exit()
 
   try {
-    await sql`drop database if exists ${sql.unsafe(DATABASE_NAME)}`;
-    await sql`drop role if exists ${sql.unsafe(DATABASE_OWNER)}`;
-    await sql`create database ${sql.unsafe(DATABASE_NAME)}`;
-    console.log(`CREATE DATABASE ${DATABASE_NAME}`);
+    await sql`drop database if exists ${sql.unsafe(DATABASE_NAME)}`
+    await sql`drop role if exists ${sql.unsafe(DATABASE_OWNER)}`
+    await sql`create database ${sql.unsafe(DATABASE_NAME)}`
+    console.log(`CREATE DATABASE ${DATABASE_NAME}`)
 
     await sql.unsafe`
       create role ${DATABASE_OWNER} with login
-      password '${DATABASE_OWNER_PASSWORD}' noinherit`;
-    console.log(`CREATE ROLE ${DATABASE_OWNER}`);
+      password '${DATABASE_OWNER_PASSWORD}' noinherit`
+    console.log(`CREATE ROLE ${DATABASE_OWNER}`)
 
     await sql.unsafe`
       grant all privileges on database ${DATABASE_NAME}
-      to ${DATABASE_OWNER}`;
-    console.log(`GRANT ${DATABASE_OWNER}`);
+      to ${DATABASE_OWNER}`
+    console.log(`GRANT ${DATABASE_OWNER}`)
 
     await sql.unsafe`
       create role ${DATABASE_AUTHENTICATOR} with login
-      password '${DATABASE_AUTHENTICATOR_PASSWORD}' noinherit`;
-    console.log(`CREATE ROLE ${DATABASE_AUTHENTICATOR}`);
+      password '${DATABASE_AUTHENTICATOR_PASSWORD}' noinherit`
+    console.log(`CREATE ROLE ${DATABASE_AUTHENTICATOR}`)
 
-    await sql.unsafe`create role ${DATABASE_VISITOR}`;
-    console.log(`CREATE ROLE ${DATABASE_VISITOR}`);
+    await sql.unsafe`create role ${DATABASE_VISITOR}`
+    console.log(`CREATE ROLE ${DATABASE_VISITOR}`)
 
-    await sql.unsafe`grant ${DATABASE_VISITOR} to ${DATABASE_AUTHENTICATOR}`;
-    console.log(`GRANT ${DATABASE_VISITOR} TO ${DATABASE_AUTHENTICATOR}`);
+    await sql.unsafe`grant ${DATABASE_VISITOR} to ${DATABASE_AUTHENTICATOR}`
+    console.log(`GRANT ${DATABASE_VISITOR} TO ${DATABASE_AUTHENTICATOR}`)
 
   } catch (e) {
-    console.error(e);
+    console.error(e)
   } finally {
-    await sql.end();
+    await sql.end()
   }
 }
-main();
+main()
 
 ````
 
 ```js scripts/generate-dotenv.mjs focus=168:171
 // @ts-check
-import path from 'node:path';
-import fs from 'node:fs/promises';
-import crypto from 'node:crypto';
-import dotenv from 'dotenv';
-import inquirer from 'inquirer';
+import path from 'node:path'
+import fs from 'node:fs/promises'
+import crypto from 'node:crypto'
+import dotenv from 'dotenv'
+import inquirer from 'inquirer'
 
-const DOTENV_PATH = path.resolve('.env');
+const DOTENV_PATH = path.resolve('.env')
 
 /** validates database name
  * @param {string} str database name
  * @returns {true | string} returns true or an error
  */
 function validName(str) {
-  if (str.length < 4) return 'must be at least 4 characters';
-  if (str !== str.toLowerCase()) return 'must be lowercase';
-  return true;
+  if (str.length < 4) return 'must be at least 4 characters'
+  if (str !== str.toLowerCase()) return 'must be lowercase'
+  return true
 }
 
 /** generates a password
@@ -1855,14 +1705,14 @@ function validName(str) {
  * @returns {string} generated password
  */
 function generatePassword(length, type = 'base64') {
-  return crypto.randomBytes(length).toString(type).replace(/\W/g, '_').toLowerCase();
+  return crypto.randomBytes(length).toString(type).replace(/\W/g, '_').toLowerCase()
 }
 
 async function readDotenv() {
   try {
-    return dotenv.parse(await fs.readFile(DOTENV_PATH, 'utf8'));
+    return dotenv.parse(await fs.readFile(DOTENV_PATH, 'utf8'))
   } catch {
-    return null;
+    return null
   }
 }
 
@@ -1871,15 +1721,15 @@ async function readDotenv() {
  * @returns {Promise<void>} void
  */
 async function createConfig(config) {
-  const packageJson = JSON.parse(await fs.readFile('./package.json', 'utf8'));
-  const packageName = packageJson.name.replace(/\W/g, '_').replace(/__+/g, '').replace(/^_/, '');
+  const packageJson = JSON.parse(await fs.readFile('./package.json', 'utf8'))
+  const packageName = packageJson.name.replace(/\W/g, '_').replace(/__+/g, '').replace(/^_/, '')
 
   let PASSWORDS = {
     ROOT_DATABASE_PASSWORD: config?.ROOT_DATABASE_PASSWORD,
     DATABASE_OWNER_PASSWORD: config?.DATABASE_OWNER_PASSWORD,
     DATABASE_AUTHENTICATOR_PASSWORD: config?.DATABASE_AUTHENTICATOR_PASSWORD,
     SECRET: config?.SECRET,
-  };
+  }
 
   if (!Object.values(PASSWORDS).every(Boolean)) {
     PASSWORDS = (
@@ -1920,7 +1770,7 @@ async function createConfig(config) {
             },
           ],
           PASSWORDS,
-        );
+        )
   }
 
   const envFile = Object.entries({
@@ -1940,30 +1790,29 @@ async function createConfig(config) {
     DATABASE_VISITOR: DATABASE_VISITOR,
     SECRET: PASSWORDS.SECRET,
     PORT,
-    ROOT_URL,
   })
     .map(([k, v]) => `${k}=${v}`)
     .join('\n')
-    .concat('\n');
+    .concat('\n')
 
-  await fs.writeFile(DOTENV_PATH, envFile, 'utf8');
-  console.log(`.env file ${config ? 'updated' : 'created'}`);
+  await fs.writeFile(DOTENV_PATH, envFile, 'utf8')
+  console.log(`.env file ${config ? 'updated' : 'created'}`)
 }
 
 async function main() {
-  createConfig(await readDotenv());
+  createConfig(await readDotenv())
 }
 
-main();
+main()
 
 ````
 
 ```js db.mjs bg=5
-import postgres from 'postgres';
+import postgres from 'postgres'
 
-export const sql = postgres(process.env.DATABASE_URL);
+export const sql = postgres(process.env.DATABASE_URL)
 
-export const authenticator = postgres(process.env.AUTH_DATABASE_URL);
+export const authenticator = postgres(process.env.AUTH_DATABASE_URL)
 ```
 
 </CH.Code>
@@ -2089,24 +1938,24 @@ export function withAuthContext(req, cb) {
 ---
 
 ```js posts.mjs focus=2,7:9,14:19
-import { Router } from 'express';
-import { withAuthContext } from './withAuthContext';
+import { Router } from 'express'
+import { withAuthContext } from './withAuthContext'
 
-const router = Router();
+const router = Router()
 
 router.get('/posts', (req, res) => {
   withAuthContext(req, async sql => {
-    res.json(await sql`select * from posts order by created_at desc`);
+    res.json(await sql`select * from posts order by created_at desc`)
   })
 })
 
 router.post('/posts', (req, res) => {
-  const { body, visibility } = req.body;
+  const { body, visibility } = req.body
   withAuthContext(req, async sql => {
     await sql`
       insert into posts (name, visibility)
-      values (${name}, ${visibility ?? sql.unsafe('default')})`;
-    res.json(await sql`select * from posts order by created_at desc`);
+      values (${name}, ${visibility ?? sql.unsafe('default')})`
+    res.json(await sql`select * from posts order by created_at desc`)
   })
 })
 

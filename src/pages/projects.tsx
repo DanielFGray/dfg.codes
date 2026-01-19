@@ -8,11 +8,11 @@ import { LinkIcon } from '~/components/SocialIcons'
 const projects = [
   {
     logo: '',
-    name: 'pg-fiddle',
-    description: 'a Postgres playground that lets you run queries and see the results in real-time.',
+    name: 'Postgres Playground',
+    description: 'a browser-based IDE that lets you run Postgres queries and see the results in real-time.',
     link: {
-      href: 'https://pgfiddle.dfg.rocks',
-      label: 'pgfiddle.dfg.rocks'
+      href: 'https://postgres-playground.dfg.codes',
+      label: 'postgres-playground.dfg.codes'
     },
   },
   {
@@ -34,8 +34,8 @@ const projects = [
       </>
     ),
     link: {
-      href: 'https://doot.dfg.rocks',
-      label: 'doot.dfg.rocks'
+      href: 'https://doot.dfg.codes',
+      label: 'doot.dfg.codes'
     },
   },
 ]

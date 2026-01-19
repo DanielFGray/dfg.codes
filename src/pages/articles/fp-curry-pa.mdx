@@ -97,7 +97,7 @@ Taking a curried function and supplying less arguments than it expects is called
 
 ---
 
-In [a previous post](../fp-intro) I talked about re-implementing `reduce`. Here's that `reduce` function, but wrapped with `curry`:
+In [a previous post](./fp-intro) I talked about re-implementing `reduce`. Here's that `reduce` function, but wrapped with `curry`:
 
 ```javascript
 const reduce = curry((fn, init, arr) => {
@@ -120,7 +120,7 @@ const reduce = curry((fn, init, arr) => {
   }
   return response
 })
-const sum = reduce(add, 0)
+const sum = reduce((a, b) => a + b, 0)
 console.log(sum([1, 2, 3]))
 `)}
 />

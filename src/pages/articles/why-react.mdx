@@ -1,4 +1,5 @@
 import { ArticleLayout } from '~/components/Articles'
+import { EditorWithPreview } from '~/components/Editors'
 
 export const meta = {
   title: 'Why Use React?',
@@ -101,4 +102,71 @@ To be fair, with React there's some pretty complex tooling involved if you want 
 
 If you've made it this far, you've learned pretty much everything about React except how to deal with state, so in parting I would like to offer a small example using React to query a JSON API and print the results.
 
-https://codesandbox.io/embed/NkB6R6O2L?module=wRo98&autoresize=1&hidenavigation=1
+export const example = `
+import React, { useState } from 'react'
+import ReactDOM from 'react-dom'
+
+const User = (props) => (
+  <div
+    style={{
+      padding: '0.5em',
+      margin: '0.5em 0',
+      background: '#ddd',
+      borderRadius: '5px',
+    }}
+  >
+    <div style={{ float: 'right' }}>
+      <img src={props.picture.large} style={{ borderRadius: '5px' }} alt="" />
+    </div>
+    <pre style={{ margin: 0 }}>{JSON.stringify(props, null, 2)}</pre>
+  </div>
+)
+
+export default function UserList() {
+  const [state, setState] = useState({ status: 'waiting', users: [] })
+  function getUser() {
+    setState((s) => ({ status: 'fetching', users: s.users }))
+    fetch('https://randomuser.me/api')
+      .then((res) => {
+        if (res.ok) return res.json()
+        throw new Error('error fetching user')
+      })
+      .then((res) =>
+        setState((s) => ({
+          users: res.results.concat(s.users),
+          status: 'loaded',
+        })),
+      )
+      .catch((error) =>
+        setState((s) => ({ users: s.users, error, status: 'fail' })),
+      )
+  }
+
+  if (state.error) console.log(state.error)
+
+  return (
+    <div>
+      {state.error ? state.error.message || state.error : null}
+      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+        <button onClick={getUser}>add new user</button>
+        {state.status}
+      </div>
+      <div>
+        {state.users?.map((u) => (
+          <User {...u} key={u.id.value} />
+        ))}
+      </div>
+    </div>
+  )
+}
+`.trim()
+
+<div className="full-bleed">
+<EditorWithPreview
+  options={{ editorHeight: '80dvh' }}
+  template="react"
+  files={{
+    '/App.js': example,
+  }}
+/>
+</div>
