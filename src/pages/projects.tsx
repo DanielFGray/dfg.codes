@@ -8,34 +8,29 @@ import { LinkIcon } from '~/components/SocialIcons'
 const projects = [
   {
     logo: '',
-    name: 'Postgres Playground',
-    description: 'a browser-based IDE that lets you run Postgres queries and see the results in real-time.',
+    name: 'Postgres Garden',
+    description: <>A browser-based IDE that lets you run Postgres queries and see the results in real-time.</>,
     link: {
-      href: 'https://postgres-playground.dfg.codes',
-      label: 'postgres-playground.dfg.codes'
+      href: 'https://postgres.garden',
+      label: 'postgres.garden'
     },
   },
   {
     logo: '',
-    name: 'tailwind-heropatterns',
-    description: <>Dynamically generate tiling SVG patterns using Tailwind classes.</>,
+    name: 'pg-sourcerer',
+    description: <>A plugin-based codegen tool that generates queries, TypeScript types, validation schemas, http routes, and more from your Postgres database schema.</>,
     link: {
-      href: 'https://github.com/danielfgray/tw-heropatterns',
-      label: 'github.com/danielfgray/tw-heropatterns',
+      href: 'https://github.com/DanielFGray/pg-sourcerer',
+      label: 'github.com/DanielFGray/pg-sourcerer',
     },
   },
   {
     logo: '',
-    name: 'doot',
-    description: (
-      <>
-        I built reddit but instead of categorizing posts by a subreddit, posts can have multiple tags.
-        It’s built on Remix, Postgres, and Tailwind.
-      </>
-    ),
+    name: 'fibrae',
+    description: <>Effect-first JSX renderer with reactivity, routing, and SSR.</>,
     link: {
-      href: 'https://doot.dfg.codes',
-      label: 'doot.dfg.codes'
+      href: 'https://github.com/DanielFGray/fibrae',
+      label: 'github.com/DanielFGray/fibrae',
     },
   },
 ]
