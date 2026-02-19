@@ -3,7 +3,7 @@ import { ArticleLayout } from '~/components/Articles'
 export const meta = {
   title: 'An Attempt At Explaining Category Theory',
   category: 'computers',
-  tags: ['programming', 'javascript', 'fp'],
+  tags: ['programming', 'typescript', 'fp'],
   date: '2018-01-04',
   description:
     "This is mostly a personal notebook of what I think I have learned. I make no guarantee about the accuracy of anything said here, I would appreciate any corrections or feedback on anything [I've ever] posted.",
@@ -17,74 +17,67 @@ This is mostly a personal notebook of what I think I have learned. I make no gua
 
 ## Types
 
-This article uses an ML-like notation for types described by the [Fantasy Land Spec][flspec].
+This article uses TypeScript to express type signatures. If you're familiar with generics, you should be able to follow along.
 
-The Fantasy Land spec also shortens `SomeObject.prototype.someMethod` by writing `SomeObject#someMethod`.
+A unary function (a function that takes one parameter) named `f` that returns a value of the same type it's given would look like:
 
-A unary function (a function that takes one parameter) named `f` that returns a value of the same type it's given would be notated as:
-
-```haskell
-f :: a -> a
+```typescript
+type F = <A>(a: A) => A
 ```
 
-The `::` can be read as "has the type of", or from a categories point-of-view, "is a member of".
-
-`a` here is a _type variable_, it's value can be anything, we just named it `a`.
-
-The `->` symbol is much like the arrow function syntax in JavaScript, it represents a function whose parameters are the thing to the left, and it returns a thing of the type to the right.
+`A` here is a _type variable_ (or generic parameter) — its value can be anything, we just named it `A`.
 
 Consider this function `id`, which just returns whatever is given to it:
 
-```javascript
-// id :: a -> a
-const id = a => a
+```typescript
+const id = <A>(a: A): A => a
 ```
 
-If this function _might_ provide a different type than given, it would be notated as:
+If this function _might_ return a different type than given, it would look like:
 
-```haskell
-f :: a -> b
+```typescript
+type F = <A, B>(a: A) => B
 ```
 
-Type signatures can impose [constraints][typeconstraints] on what inputs they accept:
+Type signatures can impose constraints on what inputs they accept:
 
-```haskell
-toUpper :: String s => s -> s
+```typescript
+const toUpper = (s: string): string => s.toUpperCase()
 ```
-
-The `=>` represents the type constraint over the following function, using the variable `s` to name it.
 
 ---
 
 Here is a binary function (a function that takes two parameters) named `g` that accepts two different values, and returns a value the same type as the second:
 
-```
-g :: a b -> b
-```
-
-If the function is [curried][currying], it would be notated as:
-
-```haskell
-g :: a -> b -> b
+```typescript
+const g = <A, B>(a: A, b: B): B => b
 ```
 
-Functions passed to `Array#reduce` are of this same type.
+If the function is [curried][currying], it would look like:
 
+```typescript
+const g = <A, B>(a: A) => (b: B): B => b
 ```
-reduce :: [a] ~> (a b -> b) b -> b
+
+Functions passed to `Array.prototype.reduce` are of this same shape:
+
+```typescript
+const reduce = <A, B>(arr: A[], fn: (acc: B, val: A) => B, init: B): B =>
+  arr.reduce(fn, init)
 ```
 
-The `~>` represents the value of `this` being the array of `a`s being implicitly passed to the function.
+Here's the curried version:
 
-Here's the curried version from Ramda:
-
-```haskell
-reduce :: (a -> b -> b) -> b -> [a] -> b
+```typescript
+const reduce = <A, B>(fn: (acc: B, val: A) => B) =>
+  (init: B) =>
+  (arr: A[]): B =>
+    arr.reduce(fn, init)
 ```
 
 ---
 
-## Groupoids and semigroupds
+## Groupoids and semigroups
 
 - groupoids are the category of things with a binary operation
 - semigroups are groupoids with associativity
@@ -94,72 +87,70 @@ reduce :: (a -> b -> b) -> b -> [a] -> b
 
 Monoids are the category of things which have:
 
-- some binary function, operator, or operation, of the type `a a -> a`. It takes two things of the same type and returns something of the same type.
+- some binary function, operator, or operation, of the type `<A>(a: A, b: A) => A`. It takes two things of the same type and returns something of the same type.
 - an _identity_ or "empty" value of that same category that when used in that function has no effect on the other value.
 
 ### Examples
 
 Numbers form a monoid, using addition and the number 0, and also using multiplication and the number 1:
 
-```javascript
-const add = (a, b) => a + b
-const multiply = (a, b) => a * b
+```typescript
+const add = (a: number, b: number): number => a + b
+const multiply = (a: number, b: number): number => a * b
 
 // adding or multiplying two numbers together yields a new number
 add(5, 5) //-> 10
 multiply(5, 5) //-> 25
-// adding or multiplying a number by it's identity value yields that same number
+// adding or multiplying a number by its identity value yields that same number
 add(10, 0) //-> 10
 multiply(10, 1) //-> 10
-//
 ```
 
 Strings form a monoid via concatenation and an empty string:
 
-```javascript
-const join = (a, b) => `${a}${b}`
+```typescript
+const join = (a: string, b: string): string => `${a}${b}`
 // or
-const join = (a, b) => a.concat(b)
+const join = (a: string, b: string): string => a.concat(b)
 join('hello', 'world') //-> 'helloworld'
 join('testing', '') //-> 'testing'
 ```
 
 Arrays fall into this category as well:
 
-```javascript
-const concat = (a, b) => [...a, ...b]
+```typescript
+const concat = <A>(a: A[], b: A[]): A[] => [...a, ...b]
 // or
-const concat = (a, b) => a.concat(b)
-concat(['test'], ['world']) //-> ['hello', 'world']
+const concat = <A>(a: A[], b: A[]): A[] => a.concat(b)
+concat(['test'], ['world']) //-> ['test', 'world']
 concat(['test'], []) //-> ['test']
 ```
 
 The last example, and my personal favorite, is functions:
 
-```javascript
-const id = a => a
-const toUpper = s => s.toUpperCase()
-const exclaim = s => `${s}!`
-const compose = (f, g) => x => f(g(x))
+```typescript
+const id = <A>(a: A): A => a
+const toUpper = (s: string): string => s.toUpperCase()
+const exclaim = (s: string): string => `${s}!`
+const compose = <A>(f: (a: A) => A, g: (a: A) => A) => (x: A): A => f(g(x))
 compose(exclaim, id)('test') //-> 'test!'
 compose(exclaim, toUpper)('test') //-> 'TEST!'
 ```
 
-All of these functions have the same type:
+All of these binary operations have the same shape:
 
-```haskell
-f :: a a -> a
+```typescript
+type BinaryOp<A> = (a: A, b: A) => A
 ```
 
 Knowing that a thing falls in the category of monoids yields valuable insights. For instance, instead of composing only two elements, we can compose any number of them:
 
-```javascript
-// listOfThings.reduce(binaryOperation, identityValue)
-
-const sum = (...ns) => ns.reduce((a, b) => a + b, 0)
-const append = (...ss) => ss.reduce((a, b) => `${a}${b}`, '')
-const concat = (...as) => as.reduce((a, b) => [...a, ...b], [])
-const compose = (...fs) => fs.reduce((a, b) => x => a(b(x)) a => a)
+```typescript
+const sum = (...ns: number[]): number => ns.reduce((a, b) => a + b, 0)
+const append = (...ss: string[]): string => ss.reduce((a, b) => `${a}${b}`, '')
+const concat = <A>(...as: A[][]): A[] => as.reduce((a, b) => [...a, ...b], [])
+const compose = <A>(...fs: Array<(a: A) => A>): ((a: A) => A) =>
+  fs.reduce((f, g) => (x) => f(g(x)), (a: A) => a)
 ```
 
 ## Functors
@@ -172,25 +163,28 @@ A functor must obey a few simple laws:
 
   Calling this map function with the identity function `x => x` should return the same input as given. In other words, `map` has no other effect on the input besides calling the given function on it.
 
-```javascript
-[1, 2, 3].map(x => x) //-> [1, 2, 3]
+```typescript
+[1, 2, 3].map((x) => x) //-> [1, 2, 3]
 ```
 
 - A functor must preserve composition
 
   Given the `compose` function above, this is best explained by saying
 
-```javascript
-const increment = x => x + 1
-const square = x => x * x
+```typescript
+const increment = (x: number): number => x + 1
+const square = (x: number): number => x * x
 nums.map(increment).map(square)
 ```
 
 returns the same thing as
 
-```javascript
-const compose = ((f, g) = x => f(g(x))
-nums.map(compose(square, increment)))
+```typescript
+const compose =
+  <A, B, C>(f: (b: B) => C, g: (a: A) => B) =>
+  (x: A): C =>
+    f(g(x))
+nums.map(compose(square, increment))
 ```
 
 As a result of these two functor laws, it can be said that
@@ -201,58 +195,59 @@ As a result of these two functor laws, it can be said that
 
   One can also create a map function that operates on objects as well as arrays:
 
-```javascript
-const type = val => Object.prototype.toString.call(val).slice(8, -1)
-const map = (fn, functor) => {
-  const t = type(functor)
-  if (t === 'Array') {
+```typescript
+function map<A, B>(fn: (a: A) => B, functor: A[]): B[]
+function map<A, B>(fn: (a: A) => B, functor: Record<string, A>): Record<string, B>
+function map<A, B>(fn: (a: A) => B, functor: A[] | Record<string, A>) {
+  if (Array.isArray(functor)) {
     return functor.map(fn)
-  } else if (t === 'Object') {
-    return Object.entries(functor)
-      .reduce((p, [k, v]) => ({ ...p, [k]: fn(v) }), {})
   }
-  throw new Error(`expected a functor, recieved: ${t}`)
+  return Object.fromEntries(
+    Object.entries(functor).map(([k, v]) => [k, fn(v as A)])
+  )
 }
 
-map(x => x + 1, { a: 1, b: 2 }) //-> { a: 2, b: 3 }
-map(x => x + 1, [1, 2]) //-> [2, 3]
+map((x: number) => x + 1, { a: 1, b: 2 }) //-> { a: 2, b: 3 }
+map((x: number) => x + 1, [1, 2]) //-> [2, 3]
 ```
 
-Note that the given function only operates on the values of the object, and new object still maintains the same keys, hence preserving the structure of the original object.
+Note that the given function only operates on the values of the object, and the new object still maintains the same keys, hence preserving the structure of the original object.
 
-So we've shown that arrays and objects (or lists and dictionaries, if you prefer) can be functors. Another way of thinking about functors, is that they are containers,
+So we've shown that arrays and objects (or lists and dictionaries, if you prefer) can be functors. Another way of thinking about functors is that they are containers.
 
 ## Endofunctors
 
 Endofunctors are a specific kind of functor whose map function always returns a type of itself.
 
-Let's create an object called Identity, which will behave like a container that lets us `map` over its value:
+Let's create a class called Identity, which will behave like a container that lets us `map` over its value:
 
-```javascript
-const Identity = function (value) {
-  this.__value = value
-}
-Identity.of = function (value) {
-  return new Identity(value)
-}
-Identity.prototype.map = function (fn) {
-  return Identity.of(fn(this.__value))
+```typescript
+class Identity<A> {
+  private constructor(private readonly value: A) {}
+
+  static of<A>(value: A): Identity<A> {
+    return new Identity(value)
+  }
+
+  map<B>(fn: (a: A) => B): Identity<B> {
+    return Identity.of(fn(this.value))
+  }
 }
 ```
 
-I also included an `.of` method (a factory function, if you like) that lets us create new `Identity`s without the `new` keyword:
+We can create new `Identity` instances using the `.of` factory method:
 
-```javascript
-Identity.of('test') //-> Identity { __value: 'test' }
+```typescript
+Identity.of('test') //-> Identity { value: 'test' }
 ```
 
 We can `.map` over this value:
 
-```javascript
-Identity.of('test').map(x => x.toUpperCase()) //-> Identity { __value: 'TEST' }
+```typescript
+Identity.of('test').map((x) => x.toUpperCase()) //-> Identity { value: 'TEST' }
 ```
 
-and no matter what we do, we always get an instance of Identity. This makes our Identity object an Endofunctor.
+and no matter what we do, we always get an instance of Identity. This makes our Identity class an Endofunctor.
 
 This may sound rather contrived, but try and think of an example where mapping an array doesn't return another array, or using our map function above, wouldn't return another object if given one.
 
@@ -272,6 +267,4 @@ We've covered both monoids and endofunctors, and according to the above definiti
 
 > ...to be continued
 
-[flspec]: https://github.com/fantasyland/fantasy-land#type-signature-notation
-[typeconstraints]: #TODO
 [currying]: /blog/fp-curry-pa

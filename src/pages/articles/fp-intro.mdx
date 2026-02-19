@@ -92,7 +92,7 @@ Then finally, the last `state` is returned.
 </CH.Scrollycoding>
 </div>
 
-A function that takes another function as an argument (or returns another function) is a called a _higher-order function_. `reduce` is a higher-order function that "folds" multiple of values into a single value.
+A function that takes another function as an argument (or returns another function) is called a _higher-order function_. `reduce` is a higher-order function that "folds" multiple values into a single value.
 
 ---
 
@@ -135,8 +135,8 @@ console.log(result)
 
 Even though JavaScript is weakly typed, analyzing the type signatures of functions can still yield valuable information about how a function works.
 
-The type of functions used in _reducers_ is `a b -> a`, that is, a function that takes two arguments and returns a value that's the same type as the first argument.  
-`reduce` is a function with the signature `(b a -> b) b [a] -> b`: it accepts a reducer function, a thing `b`, a list `a`, and returns a thing the same type of `b`.
+The type of functions used in _reducers_ is `<A, B>(a: A, b: B) => A`, that is, a function that takes two arguments and returns a value that's the same type as the first argument.
+`reduce` itself has the signature `<A, B>(fn: (acc: B, val: A) => B, init: B, arr: A[]) => B`: it accepts a reducer function, a thing `B`, a list of `A`s, and returns a thing the same type as `B`.
 
 I should note that recursive solutions are more typical in functional approaches.
 
@@ -189,7 +189,7 @@ This is much tidier, in my opinion. When you see that big messy `for` loop, you 
 
 ---
 
-`map` has a type signature of `(a -> b) [a] -> [b]`, it's a function that receives a function of type `a` which returns a thing of type `b` when given a list of `a`, and then returns a list of `b`s.
+`map` has a type signature of `<A, B>(fn: (a: A) => B, arr: A[]) => B[]`, it's a function that receives a function from `A` to `B`, a list of `A`s, and returns a list of `B`s.
 
 ---
 
@@ -243,7 +243,7 @@ If your map function returns another array, you can even "un-nest" or flatten th
 
 <EditorWithConsole
   file={`
-const flatMap = (fn, a) => a.reduce((p, c) => p.concat(c), [])
+const flatMap = (fn, a) => a.reduce((p, c) => p.concat(fn(c)), [])
 console.log(flatMap(n => [n, n], [1, 2, 3, 4]))
 `}
 />
@@ -264,15 +264,15 @@ console.log(filter(isEven, [1, 2, 3, 4]))
 `}
 />
 
-### Partiton
+### Partition
 
-A slight twist on filter, this splits an array into two arrays whether they match a predicate function:
+A slight twist on filter, this splits an array into two arrays based on whether they match a predicate function:
 
 <EditorWithConsole
   file={`
 const partition = (fn, a) =>
   a.reduce((p, c) => {
-    const idx = Number(fn(c))
+    const idx = fn(c) ? 0 : 1
     p[idx].push(c)
     return p
   }, [[], []])
@@ -304,9 +304,7 @@ for (let i = 0; i < items.length; i++) {
 
 ## Helper functions
 
-That example above, taking an array of objects and retrieving the value of a particular properties from each one, is a common enough pattern that I'd like to make a special function for it:
-
-I can take this another step further and make a function specifically for retrieving values from an array of objects:
+That example above, taking an array of objects and retrieving the value of a particular property from each one, is a common enough pattern that I'd like to make a special function for it:
 
 <EditorWithConsole
   file={`

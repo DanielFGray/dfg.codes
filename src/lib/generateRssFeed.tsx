@@ -12,7 +12,7 @@ export async function generateRssFeed() {
 
   const feed = new Feed({
     title: author.name,
-    description: 'Your blog description',
+    description: 'A blog about software development, programming languages, and technology.',
     author,
     id: siteUrl,
     link: siteUrl,

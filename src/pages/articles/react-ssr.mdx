@@ -14,7 +14,7 @@ Server rendering in React is often seen as mystical and esoteric, let's shed som
 
 ## Getting Started
 
-Let's take the following typical react client setup:
+Let's take the following typical React client setup:
 
 ```javascript src/client/index.js
 import React from 'react'
@@ -38,7 +38,7 @@ Note that the setup logic for rendering and routing is separated from the rest o
 A trivial example app might look like:
 
 ```javascript src/client/App.js
-import React, { useState } from 'react'
+import React from 'react'
 import { Route, useParams } from 'react-router-dom'
 
 function Hello() {
@@ -70,7 +70,7 @@ export default function App() {
 
 ## Server Rendering
 
-First, let's setup a simple express server that serves static files:
+First, let's set up a simple express server that serves static files:
 
 ```javascript src/index.js
 const path = require('path')
@@ -81,7 +81,7 @@ const app = express()
 
 app.use(express.static(path.resolve(__dirname, '../public')))
 app.listen(port, () => {
-  console.log(`Server is running on http://localhost:${port}`),
+  console.log(`Server is running on http://localhost:${port}`)
 })
 ```
 
@@ -107,7 +107,7 @@ module.exports = {
   entry: { main: './src/client/index' },
   resolve: { extensions: ['.js', '.jsx'] },
   output: {
-    path: path.resolve(\_\_dirname, 'public'),
+    path: path.resolve(__dirname, 'public'),
     filename: '[name]-[contentHash:8].js',
   },
   module: {
@@ -267,9 +267,9 @@ app.listen(port, () => {
 })
 ````
 
-in order for react to attach event handlers to the existing dom nodes, we have a small change to make in our client setup:
+In order for React to attach event handlers to the existing DOM nodes, we have a small change to make in our client setup:
 
-```diff src/client/index.jsx
+```diff src/client/index.js
 -ReactDOM.render(<Init/>, document.querySelector('#root'))
 +ReactDOM.hydrate(<Init/>, document.querySelector('#root'))
 ```
@@ -286,7 +286,7 @@ app.use((req, res) => {
       <App />
     </Router>
   )
-  if (routerCtx.statusCode) res.sendStatus(routerCtx.statusCode)
+  if (routerCtx.statusCode) res.status(routerCtx.statusCode)
   if (routerCtx.url) return res.redirect(routerCtx.url)
 
   const html = ReactDOMServer.renderToStaticMarkup(
@@ -311,7 +311,7 @@ app.use((req, res) => {
 And now in our app we can add a `statusCode` if necessary:
 
 ```javascript src/client/App.js bg=13:14
-import React, { useState } from 'react'
+import React from 'react'
 import { Route, useParams } from 'react-router-dom'
 
 function Hello() {
@@ -342,7 +342,7 @@ export default function App() {
 }
 ```
 
-One of the main things we're still missing is meta data in our `<head/>` tags. A few packages exist for this, the best I've found is [react-helmet-async](https://github.com/staylor/react-helmet-async).
+One of the main things we're still missing is metadata in our `<head/>` tags. A few packages exist for this, the best I've found is [react-helmet-async](https://github.com/staylor/react-helmet-async).
 
 ```bash
 npm i react-helmet-async
@@ -385,7 +385,7 @@ app.use((req, res) => {
       </Router>
     </HelmetProvider>
   )
-  if (routerCtx.statusCode) res.sendStatus(routerCtx.statusCode)
+  if (routerCtx.statusCode) res.status(routerCtx.statusCode)
   if (routerCtx.url) return res.redirect(routerCtx.url)
 
   const { helmet } = helmetCtx
@@ -414,7 +414,7 @@ app.use((req, res) => {
 Now we can update our app to have some common metadata on each page, and use different titles for each route:
 
 ```javascript src/client/App.js bg=3,13:15,29:31
-import React, { useState } from 'react'
+import React from 'react'
 import { Route, useParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 

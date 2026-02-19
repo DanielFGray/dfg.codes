@@ -32,7 +32,7 @@ What if instead of a list of instructions for the computer, telling it to create
 yell = upper exclaim
 ```
 
-This, is the core idea of our function above, it describes what we want, rather than how to do it.
+This is the core idea of our function above, it describes what we want, rather than how to do it.
 
 These separate functions don't actually exist, so let's create them:
 
@@ -44,7 +44,7 @@ const exclaim = str => `${str}!`
 Now, instead of the original function, we can say:
 
 ```javascript
-const yell = str => upper(exclaim(str))
+const yell = str => exclaim(upper(str))
 ```
 
 There's still too much noise here for my liking. We can do better with a higher-order function `compose`:
@@ -64,13 +64,13 @@ const compose = (f, g) => x => f(g(x))
 This lets us write
 
 ```javascript
-const yell = str => compose(upper, exclaim)(str)
+const yell = str => compose(exclaim, upper)(str)
 ```
 
 But wrapping that in an anonymous function is unnecessary. This is actually identical to:
 
 ```javascript
-const yell = compose(upper, exclaim)
+const yell = compose(exclaim, upper)
 ```
 
 This expresses the idea much more concisely, and is much closer to our original idea that `yell = upper exclaim`.
@@ -93,7 +93,7 @@ const yell = compose(exclaim, upper)
 yell('hello world')
 ```
 
-Not only is it shorter, but I find the signal-to-noise ratio is lower, and we have much more re-usable and _composable_ code.
+Not only is it shorter, but I find it much easier to read, and we have much more re-usable and _composable_ code.
 
 ---
 
@@ -107,7 +107,7 @@ f(g(x)) === compose(f, g)(x)
 
 When reading composed functions, it's important to remember that the input will first be given to the function on the right, and the return value will be from the function on the left.
 
-This creates an annoying context shift for me, since usually we read left-to-right, top-to-bottom, fortunately, we can make a function that does left-to-right composition:
+This creates an annoying context shift for me, since usually we read left-to-right, top-to-bottom. Fortunately, we can make a function that does left-to-right composition:
 
 ```javascript
 const pipe = (g, f) => x => f(g(x))
@@ -157,7 +157,7 @@ console.log(myfn('hello world'))
 
 ---
 
-One immediate benefit of using composed functions can be seen when used with `Array#map`.
+One immediate benefit of using composed functions can be seen when used with `Array.prototype.map`.
 
 If you've ever done
 

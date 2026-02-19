@@ -272,7 +272,8 @@ services:
       - POSTGRES_USER=${ROOT_DATABASE_USER}
       - POSTGRES_PASSWORD=${ROOT_DATABASE_PASSWORD}
     command: "postgres -c shared_preload_libraries=pg_stat_statements -c pg_stat_statements.track=all -c log_destination=stderr"
-    volumes: - /var/run/postgresql:/var/run/postgresql
+    volumes:
+      - /var/run/postgresql:/var/run/postgresql
     ports:
       - 5432:5432
 ````
@@ -283,7 +284,7 @@ PORT=3000
 ROOT_DATABASE_USER=postgres
 ROOT_DATABASE_PASSWORD=postgres
 DATABASE_OWNER=appname
-DATABASE_OWNER_PASSWOD=secret
+DATABASE_OWNER_PASSWORD=secret
 DATABASE_NAME=appname
 SECRET=supersecret
 DATABASE_PORT=5432
@@ -401,10 +402,10 @@ main()
 now that we have a running Postgres cluster first we need to create some tables
 
 <Callout collapsible title="&quot;cluster?&quot; [vocabulary notes]">
-  Postgres lets you model data in groups of rows and columns, and those rows and columns are grouped in tables tables
-  groups of tables are stored in a schema, by default the 'public' schema is used
-  a database contains many schemas
-  the instance of Postgres running on your system that contains all the databases and 
+  Postgres lets you model data in groups of rows and columns, and those rows and columns are grouped in tables.
+  groups of tables are stored in a schema, by default the 'public' schema is used.
+  a database contains many schemas.
+  the instance of Postgres running on your system that contains all the databases is called a cluster.
 </Callout>
 
 ```sql migrations/0010-schemas.sql
@@ -437,7 +438,7 @@ create table app_public.users (
 );
 
 alter table app_private.sessions
-  add constraint sessions_user_id_fkey (user_id) references app_public.users;
+  add constraint sessions_user_id_fkey foreign key (user_id) references app_public.users;
 
 create unique index users_username_idx on app_public.users (username);
 ```
@@ -590,7 +591,7 @@ class PgSessionStore extends session.Store {
       insert into sessions (sid, user_id, expires)
         values (${sid}, ${session.user.userId}::uuid, ${Number(session.cookie.expires)})
       on conflict (sid) do update set
-        user_id = $2,
+        user_id = excluded.user_id,
         expires = now() + interval '14 days'
     `.then(() => callback(), callback)
   }
@@ -657,7 +658,7 @@ class PgSessionStore extends session.Store {
       insert into sessions (sid, user_id, expires)
         values (${sid}, ${session.user.userId}::uuid, ${Number(session.cookie.expires)})
       on conflict (sid) do update set
-        user_id = $2,
+        user_id = excluded.user_id,
         expires = now() + interval '14 days'
     `.then(() => callback(), callback)
   }
@@ -736,7 +737,7 @@ class PgSessionStore extends session.Store {
       insert into sessions (sid, user_id, expires)
         values (${sid}, ${session.user.userId}::uuid, ${Number(session.cookie.expires)})
       on conflict (sid) do update set
-        user_id = $2,
+        user_id = excluded.user_id,
         expires = now() + interval '14 days'
     `.then(() => callback(), callback)
   }
@@ -835,7 +836,7 @@ app.use(session({
   resave: false,
   secret: process.env.SECRET,
   cookie: {
-    maxAge: 1000 _ 60 _ 60 _ 24 _ 14,
+    maxAge: 1000 * 60 * 60 * 24 * 14,
     httpOnly: true,
     sameSite: 'lax',
     secure: 'auto',
@@ -860,7 +861,7 @@ export class PgSessionStore extends session.Store {
       insert into sessions (sid, user_id, expires)
         values (${sid}, ${session.user.userId}::uuid, ${Number(session.cookie.expires)})
       on conflict (sid) do update set
-        user_id = $2,
+        user_id = excluded.user_id,
         expires = now() + interval '14 days'
     `.then(() => callback(), callback)
   }
@@ -1051,13 +1052,13 @@ router.post('/register', (req, res) => {
   const fieldErrors = {}
   if (!username) fieldErrors.username = 'missing username'
   const validUsername = validate.username(username)
-  if (!validUsername) fieldErrors.username = validUsername
+  if (validUsername) fieldErrors.username = validUsername
 
   if (!password) fieldErrors.password = 'missing password'
   if (!confirmPassword) fieldErrors.confirmPassword = 'please re-type your password'
   if (password !== confirmPassword) fieldErrors.confirmPassword = 'passwords dont match'
   const validPassword = validate.password(password)
-  if (!validPassword) fieldErrors.password = validPassword
+  if (validPassword) fieldErrors.password = validPassword
 
   if (Object.keys(fieldErrors).some(Boolean)) {
     return res.status(422).json({ error: { fieldErrors } })
@@ -1117,13 +1118,13 @@ router.post('/register', (req, res) => {
   const fieldErrors = {}
   if (!username) fieldErrors.username = 'missing username'
   const validUsername = validate.username(username)
-  if (!validUsername) fieldErrors.username = validUsername
+  if (validUsername) fieldErrors.username = validUsername
 
   if (!password) fieldErrors.password = 'missing password'
   if (!confirmPassword) fieldErrors.confirmPassword = 'please re-type your password'
   if (password !== confirmPassword) fieldErrors.confirmPassword = 'passwords dont match'
   const validPassword = validate.password(password)
-  if (!validPassword) fieldErrors.password = validPassword
+  if (validPassword) fieldErrors.password = validPassword
 
   if (Object.keys(fieldErrors).some(Boolean)) {
     return res.status(422).json({ error: { fieldErrors } })
@@ -1197,13 +1198,13 @@ router.post('/register', (req, res) => {
   const fieldErrors = {}
   if (!username) fieldErrors.username = 'missing username'
   const validUsername = validate.username(username)
-  if (!validUsername) fieldErrors.username = validUsername
+  if (validUsername) fieldErrors.username = validUsername
 
   if (!password) fieldErrors.password = 'missing password'
   if (!confirmPassword) fieldErrors.confirmPassword = 'please re-type your password'
   if (password !== confirmPassword) fieldErrors.confirmPassword = 'passwords dont match'
   const validPassword = validate.password(password)
-  if (!validPassword) fieldErrors.password = validPassword
+  if (validPassword) fieldErrors.password = validPassword
 
   if (Object.keys(fieldErrors).some(Boolean)) {
     return res.status(422).json({ error: { fieldErrors } })
@@ -1311,13 +1312,13 @@ router.post('/register', (req, res) => {
   const fieldErrors = {}
   if (!username) fieldErrors.username = 'missing username'
   const validUsername = validate.username(username)
-  if (!validUsername) fieldErrors.username = validUsername
+  if (validUsername) fieldErrors.username = validUsername
 
   if (!password) fieldErrors.password = 'missing password'
   if (!confirmPassword) fieldErrors.confirmPassword = 'please re-type your password'
   if (password !== confirmPassword) fieldErrors.confirmPassword = 'passwords dont match'
   const validPassword = validate.password(password)
-  if (!validPassword) fieldErrors.password = validPassword
+  if (validPassword) fieldErrors.password = validPassword
 
   if (Object.keys(fieldErrors).some(Boolean)) {
     return res.status(422).json({ error: { fieldErrors } })
@@ -1430,13 +1431,13 @@ router.post('/register', (req, res) => {
 
   if (!username) fieldErrors.username = 'missing username'
   const validUsername = validate.username(username)
-  if (!validUsername) fieldErrors.username = validUsername
+  if (validUsername) fieldErrors.username = validUsername
 
   if (!password) fieldErrors.password = 'missing password'
   if (!confirmPassword) fieldErrors.confirmPassword = 'please re-type your password'
   if (password !== confirmPassword) fieldErrors.confirmPassword = 'passwords dont match'
   const validPassword = validate.password(password)
-  if (!validPassword) fieldErrors.password = validPassword
+  if (validPassword) fieldErrors.password = validPassword
 
   if (Object.keys(fieldErrors).some(Boolean)) {
     return res.status(422).json({ error: { fieldErrors } })
@@ -1842,7 +1843,7 @@ grant all on schema public to :DATABASE_OWNER;
 create schema app_public;
 create schema app_private;
 
-grant usage on schema public, app_public, app_hidden to :DATABASE_VISITOR;
+grant usage on schema public, app_public to :DATABASE_VISITOR;
 
 alter default privileges in schema public, app_public
 grant usage, select on sequences to :DATABASE_VISITOR;
@@ -1874,7 +1875,7 @@ $$ language sql stable;
 
 create function app_public.current_user_id() returns uuid as $$
   select user_id from app_private.sessions
-  where uuid = app_public.current_session_id();
+  where sid = app_public.current_session_id();
 $$ language sql stable security definer set search_path to pg_catalog, public, pg_temp;
 ```
 
@@ -1891,7 +1892,7 @@ create table app_public.users (
 );
 
 alter table app_private.sessions
-  add constraint sessions_user_id_fkey (user_id) references app_public.users;
+  add constraint sessions_user_id_fkey foreign key (user_id) references app_public.users;
 
 create unique index users_username_idx on app_public.users (username);
 
@@ -1918,9 +1919,9 @@ create table app_public.posts (
 ---
 
 ```js withAuthContext.mjs
-import { authenticator as sql } from "./sql"
+import { authenticator as sql } from "./db"
 
-const role = process.env.DATABASE_VISITOR!
+const role = process.env.DATABASE_VISITOR
 
 export function withAuthContext(req, cb) {
   const sessionId = req.sessionID
@@ -1953,8 +1954,8 @@ router.post('/posts', (req, res) => {
   const { body, visibility } = req.body
   withAuthContext(req, async sql => {
     await sql`
-      insert into posts (name, visibility)
-      values (${name}, ${visibility ?? sql.unsafe('default')})`
+      insert into posts (body, visibility)
+      values (${body}, ${visibility ?? sql.unsafe('default')})`
     res.json(await sql`select * from posts order by created_at desc`)
   })
 })
@@ -1965,16 +1966,19 @@ export default router
 ---
 
 ```sql migrations/0030-users.sql focus=14:42
+create type app_public.user_role as enum ('user', 'admin');
+
 create table app_public.users (
   user_id uuid primary key default gen_random_uuid(),
   username citext unique not null,
   bio text,
+  role app_public.user_role not null default 'user',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
 alter table app_private.sessions
-  add constraint sessions_user_id_fkey (user_id) references app_public.users;
+  add constraint sessions_user_id_fkey foreign key (user_id) references app_public.users;
 
 create unique index users_username_idx on app_public.users (username);
 

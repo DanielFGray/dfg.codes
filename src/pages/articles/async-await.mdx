@@ -67,7 +67,7 @@ fs.writeFile(file, JSON.stringify(data), 'utf8')
   .catch(error => console.error({ message: 'error writing file', error: error.message }))
   .then(() => console.log('done writing'))
   .then(() => fs.readFile(file, 'utf8'))
-  .catch(error => console.error({ message: 'error reading file', error.message }))
+  .catch(error => console.error({ message: 'error reading file', error: error.message }))
   .then(content => console.log(content))
 ```
 
@@ -91,7 +91,7 @@ fs.writeFile(file, JSON.stringify({ n: Math.random() }), 'utf8')
   .then(contents => console.log(contents))
 ```
 
-This is definitely an improvement over nesting, but to be honest, it's not great. The whole affair feels very alien, and what if you want to combine the output from `readFile` and `statFile` into a new object?
+This is definitely an improvement over nesting, but to be honest, it's not great. The whole affair feels very alien, and what if you want to combine the output from `readFile` and `stat` into a new object?
 
 To take a step back from all of this and compare, here's the same idea, but using the synchronous versions of `read`, `write`, `stat`:
 
@@ -167,28 +167,17 @@ Error handling is also significantly simpler with async/await since you can just
 ```javascript
 const fs = require('fs/promises')
 
-async funcion writeFiles(file, data) {
+async function writeFiles(file, data) {
   try {
     await fs.writeFile(file, JSON.stringify(data), 'utf8')
-  } catch (error) {
-    console.error(error)
-    throw Error('error writing file')
-  }
-  console.log('done writing')
-  try {
+    console.log('done writing')
     const stats = await fs.stat(file)
-  } catch (error) {
-    console.error(error)
-    throw new Error('could not stat file')
-  }
-  const size = stats.size
-  try {
+    const size = stats.size
     const contents = await fs.readFile(file, 'utf8')
+    console.log({ file, size, contents })
   } catch (error) {
     console.error(error)
-    throw new Error('error reading file')
   }
-  console.log({ file, size, contents })
 }
 ```
 

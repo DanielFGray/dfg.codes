@@ -40,13 +40,13 @@ create table comments (
 );
 ```
 
-> Here, `slug` is used here identify what a comment belongs to.
+> Here, `slug` is used to identify what a comment belongs to.
 
 This is a good start, but there's several more things we can do to make this nicer.
 
 ## Indexing
 
-There are only a few slugs for each comment which makes them a good candidate for indexing, especially since the most common query is likely to be listing comments for each slug.
+There are many comments for each slug which makes them a good candidate for indexing, especially since the most common query is likely to be listing comments for each slug.
 
 Since we want nested comments, it will also help to index for finding a list of child comments.
 
@@ -90,20 +90,20 @@ create trigger
 
 ## Supabase endpoints
 
-When creating a table on Supabase it leverages PostgREST to automatically creates REST endpoints for performing `select` `insert` `update` and `delete` operations.
+When creating a table on Supabase it leverages PostgREST to automatically create REST endpoints for performing `select` `insert` `update` and `delete` operations.
 
 To list all comments we would perform an HTTP request (for example here using curl):
 
 ```sh terminal
 export SUPABASE_API='slredvwiommnlttxaegc.supabase.co'
 export SUPABASE_KEY='your secret key here'
-curl "https://${SUPABASE_API}/rest/v1/comments -H "apikey: $SUPABASE_KEY"
+curl "https://${SUPABASE_API}/rest/v1/comments" -H "apikey: $SUPABASE_KEY"
 ```
 
 We can [filter](https://postgrest.org/en/stable/api.html#horizontal-filtering-rows) by slug by using a query string:
 
 ```sh terminal
-curl "https://${SUPABASE_API}/rest/v1/comments?slug=eq.hello-world -H "apikey: $SUPABASE_KEY"
+curl "https://${SUPABASE_API}/rest/v1/comments?slug=eq.hello-world" -H "apikey: $SUPABASE_KEY"
 ```
 
 But filtering by slug doesn't give us a nice nested structure we can feed to the UI...
@@ -170,7 +170,7 @@ create function comments_stats() returns json as $$
   select
     coalesce(json_object(
       array_agg(slug),
-      array_agg(count)
+      array_agg(count::text)
     ), '{}')
   from (
     select
@@ -223,7 +223,7 @@ function CommentCard({
       {children.length > 0 && (
         <ul>
           {children.map(c => (
-            <CommentCard comment={c} key={c.comment_id} />
+            <CommentCard key={c.comment_id} {...c} />
           ))}
         </ul>
       )}
@@ -236,19 +236,19 @@ function CommentList({ slug }: { slug: string }) {
   if (error || comments && !Array.isArray(comments)) {
     return 'There was an error fetching comments.'
   }
-  if (loading) {
+  if (status === 'loading') {
     return 'Loading...'
-  }
-  if (comments.length < 1) {
-    return 'No comments... yet?'
   }
   if (comments == null) {
     return null
   }
+  if (comments.length < 1) {
+    return 'No comments... yet?'
+  }
   return (
     <ul>
       {comments.map(c => (
-        <CommentCard key={c.comment_id} comment={c} />
+        <CommentCard key={c.comment_id} {...c} />
       ))}
     </ul>
   )
@@ -329,7 +329,7 @@ import { useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 
-function useRealTimeComments(slug) {
+function useRealTimeComments(slug: string) {
   const queryClient = useQueryClient()
   useEffect(() => {
     const subscription = supabase
@@ -424,7 +424,7 @@ Now we can finally make hooks that create and delete comments:
 function useCreateComment() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutaitonKey: ['new_comment'],
+    mutationKey: ['new_comment'],
     mutationFn: async (values: { slug: string; body: string; parent_id: number | null }) => {
       const { data, error } = await supabase.from('comments').insert(values)
       if (error) throw error
@@ -458,7 +458,7 @@ function useLogout() {
 }
 ```
 
-Now we have hooks we need to integrate them into to our components.
+Now we have hooks we need to integrate them into our components.
 
 First, let's create the comment form, but only show it when `session` is set, otherwise it shows a "sign in with github" button.
 
@@ -497,7 +497,7 @@ function CommentSection({ slug }: { slug: string }) {
   )
 }
 
-function ReplyForm({ replyId, setReplyID }: {
+function ReplyForm({ replyId, clearReplyId }: {
   replyId: null | number
   clearReplyId: () => void
 }) {
@@ -562,7 +562,7 @@ function CommentList({ comments, status, error, sessionUserId, replyId, setReply
   status: "loading" | "error" | "success",
   error: unknown
   sessionUserId: string | null
-  replyId: string | null
+  replyId: number | null
   setReplyId: (reply: number) => void
 }) {
   if (status === 'loading') return 'Loading...'
@@ -588,7 +588,7 @@ function CommentList({ comments, status, error, sessionUserId, replyId, setReply
 }
 ```
 
-Now that a CommentCard has access to the session's user id we determine when to show a reply button, and let users delete their previous comments.
+Now that a CommentCard has access to the session's user id we can determine when to show a reply button, and let users delete their previous comments.
 
 ```typescript
 function CommentCard({
@@ -607,9 +607,9 @@ function CommentCard({
       <div>{comment.user.username}</div>
       <div><time>{new Date(comment.created_at).toLocaleString()}</time></div>
       <div>{comment.body}</div>
-      {session && (
+      {sessionUserId && (
         <div>
-          <button onClick={() => setReplyId(comment_id)}>reply</button>
+          <button onClick={() => setReplyId(comment.comment_id)}>reply</button>
           {sessionUserId === comment.user.user_id && (
             <button onClick={ev => {
               if (ev.shiftKey || confirm('Are you sure you want to delete your comment?')) {
@@ -626,7 +626,7 @@ function CommentCard({
           {comment.children.map(c => (
             <CommentCard
               key={c.comment_id}
-              comment={comment}
+              comment={c}
               setReplyId={setReplyId}
               sessionUserId={sessionUserId}
             />
@@ -642,7 +642,7 @@ function CommentCard({
 
 The astute reader may notice that any user currently can delete or edit another user's posts by issuing the appropriate request.
 
-Foruntately Postgres Row-Level-Security features will let us write declarative policies to enforce that a user can only delete or edit their own content, while allowing all other users to still read them.
+Fortunately Postgres Row-Level-Security features will let us write declarative policies to enforce that a user can only delete or edit their own content, while allowing all other users to still read them.
 
 ```sql
 alter table profiles enable row level security;
