@@ -21,6 +21,21 @@ const chConfig = {
 // COEP: credentialless on all pages (allows cross-origin resources).
 //       require-corp on /node-preview* (stricter, needed by WebContainers).
 // The parent page MUST have COEP for child iframes to be crossOriginIsolated.
+// Build node-preview-entry.ts as a separate chunk so the static
+// node-preview.html in public/ can reference the bundled JS.
+function nodePreviewEntry(): Plugin {
+  return {
+    name: "node-preview-entry",
+    buildStart() {
+      this.emitFile({
+        type: "chunk",
+        id: "src/node-preview-entry.ts",
+        fileName: "node-preview-entry.js",
+      });
+    },
+  };
+}
+
 function crossOriginIsolation(): Plugin {
   return {
     name: "cross-origin-isolation",
@@ -50,6 +65,7 @@ export default defineConfig({
   plugins: [
     tailwindcss(),
     crossOriginIsolation(),
+    nodePreviewEntry(),
     mdx({
       remarkPlugins: [
         remarkFrontmatter,
