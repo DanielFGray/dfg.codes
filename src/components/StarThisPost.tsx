@@ -1,7 +1,7 @@
 import * as React from 'react'
 import debounce from 'lodash/debounce'
 import clsx from 'clsx'
-import { useGetLikes, useSendLike } from '~/lib/comments'
+import { useGetLikes, useSendLike } from '@/lib/comments'
 
 // left click to increase
 // right click to decrease
@@ -16,7 +16,7 @@ const getColor = (clicks: number) =>
 export function StarPost({ slug }: { slug: string }) {
   const fetchLikes = useGetLikes(slug)
   const [clicks, setClicks] = React.useState(0)
-  const starRef = React.useRef<SVGUseElement>()
+  const starRef = React.useRef<SVGUseElement>(null)
 
   React.useEffect(() => {
     if (fetchLikes.data) {
@@ -46,7 +46,7 @@ export function StarPost({ slug }: { slug: string }) {
     }
   }
   function incFill() {
-    if (clicks < fetchLikes.data.max) {
+    if (fetchLikes.data && clicks < fetchLikes.data.max) {
       starRef.current?.classList.add('ping')
       setClicks(c => {
         sendClicks.current(c + 1)
@@ -98,7 +98,7 @@ export function StarPost({ slug }: { slug: string }) {
             strokeWidth="0.2"
             fill="none"
             stroke="currentColor"
-            onAnimationEnd={v => starRef.current.classList.remove('ping')}
+            onAnimationEnd={() => starRef.current?.classList.remove('ping')}
           />
           <text
             x="50%"

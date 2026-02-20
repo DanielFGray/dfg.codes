@@ -1,0 +1,430 @@
+---
+title: Creating a REST API in Node.js
+category: computers
+tags: [express, kysely, nodejs, typescript, postgres, programming]
+date: '2017-04-19'
+updated: '2025-02-19'
+description: 'Getting started with making web APIs can be confusing, even overwhelming at first. I''d like to share my process for creating APIs in Node.js.'
+---
+
+Getting started with making web APIs can be confusing, even overwhelming at first. I'd like to share my process for creating APIs in Node.js.
+
+## The server
+
+First let's create a `package.json` and add some dependencies:
+
+```sh terminal
+mkdir rest_api && cd rest_api
+npm init -y
+npm i express
+npm i -D typescript tsx @types/express
+```
+
+<CH.Scrollycoding className="wide-code" rows={18}>
+This is a simple 'hello world' with express:
+
+```typescript src/index.ts
+import express from 'express'
+
+const app = express()
+
+app.get('/', (req, res) => {
+  res.send('Hello world!')
+})
+
+const port = process.env.PORT || 3000
+app.listen(port, () => {
+  console.log(`Express started on http://localhost:${port}\npress Ctrl+C to terminate.`)
+})
+```
+
+---
+
+Express is imported, then an instance is created and saved as `app`.
+
+```typescript src/index.ts focus=1:3
+
+```
+
+---
+
+`app.get()` tells the Express instance to listen for `GET` requests to the specified route; here it's just `/`. When this route is requested, the given callback is fired, in this case it sends the string "Hello world!" as a response.
+
+```typescript src/index.ts focus=5:7
+
+```
+
+---
+
+`port` is declared as a variable which can be set from the environment, or otherwise defaults to `3000` if none is specified. Express then listens on that port, and after the server has finally started it uses `console.log` to print a message in the terminal.
+
+```typescript src/index.ts focus=9:12
+
+```
+
+</CH.Scrollycoding>
+
+Assuming everything went okay, you should then be able to run `npx tsx src/index.ts` and point your browser at [http://localhost:3000/](http://localhost:3000/) and see the message "Hello world!"
+
+---
+
+Another way to test this instead of opening your browser is with either [cURL][curl] or [postman][postman]. cURL is great if you're the command-line junkie type (like me), postman is really pretty and slick but a bit too much hassle for me.
+
+[curl]: https://curl.haxx.se
+[postman]: https://getpostman.com
+
+Once you have curl installed it should be as simple to get your Hello World in the shell with:
+
+```sh terminal
+curl localhost:3000
+```
+
+## Request parameters
+
+A server that only responds with the same thing every time isn't very fun though. Let's make a new route that allows us to say hello when passed a name:
+
+```typescript src/index.ts focus=7:9
+const app = express()
+
+app.get('/', (req, res) => {
+  res.send('Hello world!')
+})
+
+app.get('/:name', (req, res) => {
+  res.send(`Hello ${req.params.name}!`)
+})
+```
+
+You'll want to add this before the `app.listen()` command so that it gets registered properly.
+
+Then, with curl:
+
+```sh terminal
+curl localhost:3000/foo
+```
+
+You should see "Hello foo!"
+
+## Automatic restart
+
+To get the above change working, you first have to stop the server and then restart it again, which can get fairly annoying after a few changes. `tsx` has a built-in watch mode that will restart automatically when files change:
+
+```json package.json bg=2
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+```
+
+Now you can run `npm run dev` and it will watch for changes and restart the server.
+
+## The database
+
+Before making a database, you should first identify your data and what you'll be doing with it. I spent about 30 seconds debating what kind of data to use in this tutorial, and decided to do "something" with movies.
+
+Among other things, a movie would have a title and a date it was released, and that seems like enough to work with for now.
+
+We'll use [PostgreSQL][postgres], the world's most advanced open source [RDBMS][rdbms]. One of the easiest ways to run Postgres for development is with [Docker][docker]:
+
+[postgres]: https://www.postgresql.org/
+[rdbms]: https://en.wikipedia.org/wiki/Relational_database_management_system
+[docker]: https://www.docker.com/
+
+<CH.Code>
+```yaml docker-compose.yml
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: rest_api
+    ports:
+      - 5432:5432
+```
+---
+```sh .env
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/rest_api
+PORT=3000
+```
+</CH.Code>
+
+```sh terminal
+docker compose up -d
+```
+
+Now let's create our movies table:
+
+```sql migrations/001-create-movies.sql
+create table movies (
+  id serial primary key,
+  title text not null,
+  released integer not null
+);
+```
+
+```sh terminal
+psql $DATABASE_URL -f migrations/001-create-movies.sql
+```
+
+### Setting up Kysely
+
+Rather than writing raw SQL for our queries, we're going to use a query builder called [Kysely][kysely]. Kysely lets you write queries in TypeScript that map closely to SQL, while giving you full autocompletion and compile-time type checking.
+
+[kysely]: https://kysely.dev
+
+```sh terminal
+npm i kysely pg
+npm i -D kysely-codegen @types/pg
+```
+
+We'll use [kysely-codegen][codegen] to introspect the database and automatically generate TypeScript types that match our schema:
+
+[codegen]: https://github.com/RobinBlomberg/kysely-codegen
+
+```sh terminal
+npx kysely-codegen --dialect postgres --url $DATABASE_URL
+```
+
+Now we can create our database connection:
+
+```typescript src/db.ts
+import { Kysely, PostgresDialect } from 'kysely'
+import type { DB } from 'kysely-codegen'
+import pg from 'pg'
+
+export const db = new Kysely<DB>({
+  dialect: new PostgresDialect({
+    pool: new pg.Pool({
+      connectionString: process.env.DATABASE_URL,
+    }),
+  }),
+})
+```
+
+This creates and exports a single Kysely instance that we can re-use in other modules. The `DB` type generated by `kysely-codegen` gives us full type safety for all our queries.
+
+## Data methods
+
+Now that we have a database and a table, we need some methods to populate the table with data.
+
+<CH.Scrollycoding className="wide-code" rows={20}>
+
+```typescript src/movies.ts
+import { db } from './db'
+
+export async function create(title: string, released: number) {
+  return db
+    .insertInto('movies')
+    .values({ title, released })
+    .returningAll()
+    .executeTakeFirstOrThrow()
+}
+```
+
+This creates a function called `create` that inserts a new movie and returns the full row. Kysely's `.returningAll()` gives us back the complete record including the generated `id`.
+
+---
+
+Now that we can create movies, we should make a way to list them.
+
+```typescript src/movies.ts focus=11:16
+import { db } from './db'
+
+export async function create(title: string, released: number) {
+  return db
+    .insertInto('movies')
+    .values({ title, released })
+    .returningAll()
+    .executeTakeFirstOrThrow()
+}
+
+export async function list() {
+  return db
+    .selectFrom('movies')
+    .selectAll()
+    .execute()
+}
+```
+
+</CH.Scrollycoding>
+
+## Wiring it up
+
+Now let's wire up our database to our server!
+
+Going back to our `src/index.ts`, let's import our new movies module and make a route to use the `list` method:
+
+```typescript src/index.ts bg=2,6:8
+import express from 'express'
+import * as movies from './movies'
+
+const app = express()
+
+app.get('/api/v1/movies', async (req, res) => {
+  res.json(await movies.list())
+})
+
+const port = process.env.PORT || 3000
+app.listen(port, () => {
+  console.log(`Express started on http://localhost:${port}\npress Ctrl+C to terminate.`)
+})
+```
+
+Requesting the data is the easy part, with curl we can simply:
+
+```sh terminal
+curl localhost:3000/api/v1/movies
+```
+
+which right now will return an empty JSON array.
+
+## Express middleware
+
+To be able to properly create movies, we need to introduce a piece of express _middleware_.
+
+Middleware are functions that are run before a route handler. They usually alter the request or response objects in some way. There are tons of middleware modules for express, if you'd like to read more you can check out the [official docs][middleware].
+
+[middleware]: http://expressjs.com/en/guide/using-middleware.html
+
+```typescript src/index.ts
+app.use(express.json())
+```
+
+This parses incoming requests with JSON bodies and makes the parsed data available as `req.body`. Now we can add a route that responds to `POST` requests:
+
+```typescript src/index.ts bg=12:15
+import express from 'express'
+import * as movies from './movies'
+
+const app = express()
+
+app.use(express.json())
+
+app.get('/api/v1/movies', async (req, res) => {
+  res.json(await movies.list())
+})
+
+app.post('/api/v1/movies', async (req, res) => {
+  const { title, released } = req.body
+  res.json(await movies.create(title, released))
+})
+
+const port = process.env.PORT || 3000
+app.listen(port, () => {
+  console.log(`Express started on http://localhost:${port}\npress Ctrl+C to terminate.`)
+})
+```
+
+Using curl we can now insert data with:
+
+```sh terminal
+curl -X POST -H 'Content-Type: application/json' \
+  -d '{"title": "nothing good", "released": 2017}' \
+  localhost:3000/api/v1/movies
+```
+
+Which will return the created movie, including its generated `id`.
+
+## Full CRUD support
+
+Any good API endpoint usually provides [four methods][crud]:
+
+- Create
+- Read
+- Update
+- Delete
+
+[crud]: https://en.wikipedia.org/wiki/Create,_read,_update_and_delete
+
+We only have the first two, so let's finish it up and add the others.
+
+Back in our `src/movies.ts` let's add two more functions:
+
+```typescript src/movies.ts focus=18:33
+import { db } from './db'
+
+export async function create(title: string, released: number) {
+  return db
+    .insertInto('movies')
+    .values({ title, released })
+    .returningAll()
+    .executeTakeFirstOrThrow()
+}
+
+export async function list() {
+  return db
+    .selectFrom('movies')
+    .selectAll()
+    .execute()
+}
+
+export async function update(id: number, title: string, released: number) {
+  return db
+    .updateTable('movies')
+    .set({ title, released })
+    .where('id', '=', id)
+    .returningAll()
+    .executeTakeFirstOrThrow()
+}
+
+export async function del(id: number) {
+  return db
+    .deleteFrom('movies')
+    .where('id', '=', id)
+    .execute()
+}
+```
+
+Back in `src/index.ts` we need to make two more routes:
+
+```typescript src/index.ts bg=17:25
+import express from 'express'
+import * as movies from './movies'
+
+const app = express()
+
+app.use(express.json())
+
+app.get('/api/v1/movies', async (req, res) => {
+  res.json(await movies.list())
+})
+
+app.post('/api/v1/movies', async (req, res) => {
+  const { title, released } = req.body
+  res.json(await movies.create(title, released))
+})
+
+app.put('/api/v1/movies/:id', async (req, res) => {
+  const { title, released } = req.body
+  res.json(await movies.update(Number(req.params.id), title, released))
+})
+
+app.delete('/api/v1/movies/:id', async (req, res) => {
+  await movies.del(Number(req.params.id))
+  res.json(await movies.list())
+})
+
+const port = process.env.PORT || 3000
+app.listen(port, () => {
+  console.log(`Express started on http://localhost:${port}\npress Ctrl+C to terminate.`)
+})
+```
+
+Now we can update movies:
+
+```sh terminal
+curl -X PUT -H 'Content-Type: application/json' \
+  -d '{"title": "new title", "released": 2017}' \
+  localhost:3000/api/v1/movies/1
+```
+
+And delete them by id:
+
+```sh terminal
+curl -X DELETE localhost:3000/api/v1/movies/1
+```
+
+## Conclusion
+
+We learned how to set up a PostgreSQL database with Docker, use Kysely for type-safe queries, and build a full CRUD REST API with Express and TypeScript.

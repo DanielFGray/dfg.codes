@@ -1,7 +1,6 @@
-'use client'
 import React, { useState, useRef, useCallback, forwardRef } from 'react'
 import ago from 's-ago'
-import { usePathname } from 'next/navigation'
+import { useLocation } from 'react-router'
 import {
   useSignIn,
   useAuth,
@@ -10,14 +9,26 @@ import {
   useDeleteComment,
   useCommentFetcher,
   type Comment as TComment,
-} from '~/lib/comments'
-import { TrashIcon, ReplyIcon } from '@heroicons/react/solid'
+} from '@/lib/comments'
 import { type Provider } from '@supabase/supabase-js'
 import clsx from 'clsx'
-import { Transition } from '@headlessui/react'
-import Link from 'next/link'
-import { Card } from './Card'
-import { StarPost } from './StarThisPost'
+import { StarPost } from '@/components/StarThisPost'
+
+function TrashIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" {...props}>
+      <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+    </svg>
+  )
+}
+
+function ReplyIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" {...props}>
+      <path fillRule="evenodd" d="M7.707 3.293a1 1 0 010 1.414L5.414 7H11a7 7 0 017 7v2a1 1 0 11-2 0v-2a5 5 0 00-5-5H5.414l2.293 2.293a1 1 0 11-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+    </svg>
+  )
+}
 
 const providers = [
   // { provider: 'twitter', label: 'Twitter' },
@@ -42,11 +53,10 @@ function SignInForm({ signIn }: { signIn: (provider: Provider) => void }) {
 
 export function CommentSection() {
   const [replyId, setReplyId] = useState<null | number>(null)
-  const router = usePathname()
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
   const session = useAuth()
   const signin = useSignIn()
-  const pathname = usePathname()
+  const pathname = useLocation().pathname
   const slug = pathname.slice(pathname.lastIndexOf('/') + 1)
   const { data: comments, error, status } = useCommentFetcher({ slug })
 
@@ -113,13 +123,13 @@ export function CommentList({
 }: {
   comments: undefined | null | Array<TComment>
   replyId: null | number
-  status: 'error' | 'success' | 'loading'
+  status: 'error' | 'success' | 'pending'
   error: unknown
   setReplyId: (replyId: number) => void
   sessionUserId: null | string
   slug: string
-}): JSX.Element {
-  if (status === 'loading') {
+}): React.JSX.Element | null {
+  if (status === 'pending') {
     return <li className="text-center italic">Loading...</li>
   }
   if (error || status === 'error' || (comments && !Array.isArray(comments))) {
@@ -163,13 +173,13 @@ export function Comment({
   date: Date
   sessionUserId: null | string
   setReplyId(a: number): void
-  deleteComment: { isLoading: boolean; isSuccess: boolean; mutate(id: number): void }
-}): JSX.Element {
+  deleteComment: { isPending: boolean; isSuccess: boolean; mutate(id: number): void }
+}): React.JSX.Element {
   return (
     <div
       className={clsx(
         'group rounded border-2 border-transparent p-1 transition-all duration-500',
-        commentId < 0 || deleteComment.isLoading || deleteComment.isSuccess
+        commentId < 0 || deleteComment.isPending || deleteComment.isSuccess
           ? 'opacity-50'
           : 'opacity-100',
         commentId === replyId && 'border-primary-300 dark:border-primary-600',
@@ -178,9 +188,9 @@ export function Comment({
       <div className="flex flex-row gap-4 pr-2">
         <Avatar avatar_url={user.avatar_url} />
         <div className="flex flex-col justify-center text-primary-700 dark:text-primary-300">
-          <Link href={`https://github.com/${user.username}`} className="font-medium tracking-wide">
+          <a href={`https://github.com/${user.username}`} className="font-medium tracking-wide">
             {user.username}
-          </Link>
+          </a>
           <time className="cursor-help font-extralight tracking-tight">
             <a title={date.toLocaleString()}>{ago(date)}</a>
           </time>
@@ -236,20 +246,10 @@ export function CommentCard({
   const deleteComment = useDeleteComment(slug)
 
   return (
-    <Transition
-      as="li"
+    <li
       key={commentId}
       id={`comment_${commentId}`}
-      show={!(deleteComment.isLoading || deleteComment.isSuccess)}
-      enter="transition-all duration-500"
-      enterFrom="opacity-0 scale-y-0"
-      enterTo="opacity-100 scale-y-100"
-      leave="transition-all duration-500"
-      leaveFrom="opacity-100 scale-y-100"
-      leaveTo="opacity-0 scale-y-0"
-      appear={commentId < 0}
-      unmount={false}
-      className={clsx(`mt-4 rounded-l-lg`, depth > 0 && 'ml-4')}
+      className={clsx('mt-4 rounded-l-lg', depth > 0 && 'ml-4')}
     >
       <section>
         <Comment
@@ -278,7 +278,7 @@ export function CommentCard({
           </ul>
         )}
       </section>
-    </Transition>
+    </li>
   )
 }
 
@@ -342,7 +342,7 @@ const CommentForm = forwardRef(function CommentForm(
               className="block w-full resize-none border-0 border-b border-transparent bg-transparent p-0 pb-2 focus:border-primary-600 focus:ring-0 disabled:opacity-50 dark:text-primary-200 sm:text-sm"
               placeholder="Say something nice!"
               defaultValue=""
-              disabled={newcomment.isLoading}
+              disabled={newcomment.isPending}
             />
           </div>
           <div className="flex justify-between pt-2">
@@ -351,9 +351,9 @@ const CommentForm = forwardRef(function CommentForm(
                 <button
                   type="submit"
                   className="inline-flex items-center rounded-md border border-transparent bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 dark:ring-offset-primary-800"
-                  disabled={newcomment.isLoading}
+                  disabled={newcomment.isPending}
                 >
-                  {newcomment.isLoading ? 'sending...' : 'post'}
+                  {newcomment.isPending ? 'sending...' : 'post'}
                 </button>
               </div>
               <div className="flow-root">

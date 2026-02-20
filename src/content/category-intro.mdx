@@ -1,0 +1,265 @@
+---
+title: An Attempt At Explaining Category Theory
+category: computers
+tags: [programming, typescript, fp]
+date: '2018-01-04'
+description: 'This is mostly a personal notebook of what I think I have learned. I make no guarantee about the accuracy of anything said here, I would appreciate any corrections or feedback on anything [I''ve ever] posted.'
+---
+
+This is mostly a personal notebook of what I think I have learned. I make no guarantee about the accuracy of anything said here, I would appreciate any corrections or feedback on anything [I've ever] posted.
+
+## Introduction
+
+## Types
+
+This article uses TypeScript to express type signatures. If you're familiar with generics, you should be able to follow along.
+
+A unary function (a function that takes one parameter) named `f` that returns a value of the same type it's given would look like:
+
+```typescript
+type F = <A>(a: A) => A
+```
+
+`A` here is a _type variable_ (or generic parameter) — its value can be anything, we just named it `A`.
+
+Consider this function `id`, which just returns whatever is given to it:
+
+```typescript
+const id = <A>(a: A): A => a
+```
+
+If this function _might_ return a different type than given, it would look like:
+
+```typescript
+type F = <A, B>(a: A) => B
+```
+
+Type signatures can impose constraints on what inputs they accept:
+
+```typescript
+const toUpper = (s: string): string => s.toUpperCase()
+```
+
+---
+
+Here is a binary function (a function that takes two parameters) named `g` that accepts two different values, and returns a value the same type as the second:
+
+```typescript
+const g = <A, B>(a: A, b: B): B => b
+```
+
+If the function is [curried][currying], it would look like:
+
+```typescript
+const g = <A, B>(a: A) => (b: B): B => b
+```
+
+Functions passed to `Array.prototype.reduce` are of this same shape:
+
+```typescript
+const reduce = <A, B>(arr: A[], fn: (acc: B, val: A) => B, init: B): B =>
+  arr.reduce(fn, init)
+```
+
+Here's the curried version:
+
+```typescript
+const reduce = <A, B>(fn: (acc: B, val: A) => B) =>
+  (init: B) =>
+  (arr: A[]): B =>
+    arr.reduce(fn, init)
+```
+
+---
+
+## Groupoids and semigroups
+
+- groupoids are the category of things with a binary operation
+- semigroups are groupoids with associativity
+- monoids are semigroups with an identity element
+
+## Monoid
+
+Monoids are the category of things which have:
+
+- some binary function, operator, or operation, of the type `<A>(a: A, b: A) => A`. It takes two things of the same type and returns something of the same type.
+- an _identity_ or "empty" value of that same category that when used in that function has no effect on the other value.
+
+### Examples
+
+Numbers form a monoid, using addition and the number 0, and also using multiplication and the number 1:
+
+```typescript
+const add = (a: number, b: number): number => a + b
+const multiply = (a: number, b: number): number => a * b
+
+// adding or multiplying two numbers together yields a new number
+add(5, 5) //-> 10
+multiply(5, 5) //-> 25
+// adding or multiplying a number by its identity value yields that same number
+add(10, 0) //-> 10
+multiply(10, 1) //-> 10
+```
+
+Strings form a monoid via concatenation and an empty string:
+
+```typescript
+const join = (a: string, b: string): string => `${a}${b}`
+// or
+const join = (a: string, b: string): string => a.concat(b)
+join('hello', 'world') //-> 'helloworld'
+join('testing', '') //-> 'testing'
+```
+
+Arrays fall into this category as well:
+
+```typescript
+const concat = <A>(a: A[], b: A[]): A[] => [...a, ...b]
+// or
+const concat = <A>(a: A[], b: A[]): A[] => a.concat(b)
+concat(['test'], ['world']) //-> ['test', 'world']
+concat(['test'], []) //-> ['test']
+```
+
+The last example, and my personal favorite, is functions:
+
+```typescript
+const id = <A>(a: A): A => a
+const toUpper = (s: string): string => s.toUpperCase()
+const exclaim = (s: string): string => `${s}!`
+const compose = <A>(f: (a: A) => A, g: (a: A) => A) => (x: A): A => f(g(x))
+compose(exclaim, id)('test') //-> 'test!'
+compose(exclaim, toUpper)('test') //-> 'TEST!'
+```
+
+All of these binary operations have the same shape:
+
+```typescript
+type BinaryOp<A> = (a: A, b: A) => A
+```
+
+Knowing that a thing falls in the category of monoids yields valuable insights. For instance, instead of composing only two elements, we can compose any number of them:
+
+```typescript
+const sum = (...ns: number[]): number => ns.reduce((a, b) => a + b, 0)
+const append = (...ss: string[]): string => ss.reduce((a, b) => `${a}${b}`, '')
+const concat = <A>(...as: A[][]): A[] => as.reduce((a, b) => [...a, ...b], [])
+const compose = <A>(...fs: Array<(a: A) => A>): ((a: A) => A) =>
+  fs.reduce((f, g) => (x) => f(g(x)), (a: A) => a)
+```
+
+## Functors
+
+Functors are things that provide _mappings_ to other things. Functors let you describe transformations, or _morphisms_ (sometimes more formally _homomorphisms_), from category `A` to category `B`.
+
+A functor must obey a few simple laws:
+
+- A functor must preserve identity
+
+  Calling this map function with the identity function `x => x` should return the same input as given. In other words, `map` has no other effect on the input besides calling the given function on it.
+
+```typescript
+[1, 2, 3].map((x) => x) //-> [1, 2, 3]
+```
+
+- A functor must preserve composition
+
+  Given the `compose` function above, this is best explained by saying
+
+```typescript
+const increment = (x: number): number => x + 1
+const square = (x: number): number => x * x
+nums.map(increment).map(square)
+```
+
+returns the same thing as
+
+```typescript
+const compose =
+  <A, B, C>(f: (b: B) => C, g: (a: A) => B) =>
+  (x: A): C =>
+    f(g(x))
+nums.map(compose(square, increment))
+```
+
+As a result of these two functor laws, it can be said that
+
+- A functor must preserve structure
+
+  A map function should return a result of the same structure as given to it. With arrays, this is done by making sure the length of the list remains the same, and that the transformation of each item can be represented via the same index (and not in reverse or some other order).
+
+  One can also create a map function that operates on objects as well as arrays:
+
+```typescript
+function map<A, B>(fn: (a: A) => B, functor: A[]): B[]
+function map<A, B>(fn: (a: A) => B, functor: Record<string, A>): Record<string, B>
+function map<A, B>(fn: (a: A) => B, functor: A[] | Record<string, A>) {
+  if (Array.isArray(functor)) {
+    return functor.map(fn)
+  }
+  return Object.fromEntries(
+    Object.entries(functor).map(([k, v]) => [k, fn(v as A)])
+  )
+}
+
+map((x: number) => x + 1, { a: 1, b: 2 }) //-> { a: 2, b: 3 }
+map((x: number) => x + 1, [1, 2]) //-> [2, 3]
+```
+
+Note that the given function only operates on the values of the object, and the new object still maintains the same keys, hence preserving the structure of the original object.
+
+So we've shown that arrays and objects (or lists and dictionaries, if you prefer) can be functors. Another way of thinking about functors is that they are containers.
+
+## Endofunctors
+
+Endofunctors are a specific kind of functor whose map function always returns a type of itself.
+
+Let's create a class called Identity, which will behave like a container that lets us `map` over its value:
+
+```typescript
+class Identity<A> {
+  private constructor(private readonly value: A) {}
+
+  static of<A>(value: A): Identity<A> {
+    return new Identity(value)
+  }
+
+  map<B>(fn: (a: A) => B): Identity<B> {
+    return Identity.of(fn(this.value))
+  }
+}
+```
+
+We can create new `Identity` instances using the `.of` factory method:
+
+```typescript
+Identity.of('test') //-> Identity { value: 'test' }
+```
+
+We can `.map` over this value:
+
+```typescript
+Identity.of('test').map((x) => x.toUpperCase()) //-> Identity { value: 'TEST' }
+```
+
+and no matter what we do, we always get an instance of Identity. This makes our Identity class an Endofunctor.
+
+This may sound rather contrived, but try and think of an example where mapping an array doesn't return another array, or using our map function above, wouldn't return another object if given one.
+
+In programming it's usually pretty safe to assume a functor will behave like an endofunctor.
+
+## Monads
+
+> A monad is a monoid in the category of endofunctors
+
+This is an often quoted definition of monads, but it's very terse and doesn't really explain much.
+
+We've covered both monoids and endofunctors, and according to the above definition, monads inherit properties from both of them:
+
+- A monad has some operation that takes two monads of the same type and returns another monad of the same type
+- ... has an identity or empty value of the monad which returns the original monad when used in the above function
+- ... always returns an instance of itself
+
+> ...to be continued
+
+[currying]: /blog/fp-curry-pa

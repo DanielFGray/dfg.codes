@@ -1,0 +1,119 @@
+---
+title: 'Functional Programming: currying and partial application'
+category: computers
+tags: [programming, javascript, fp]
+date: '2017-08-23'
+description: An explanation of currying and partial application using JavaScript
+---
+
+An explanation of currying and partial application using JavaScript
+
+---
+
+Let's start with a simple function that takes two numbers and adds them together:
+
+<Editor console files={{ '/index.js': `
+const add = function (a, b) {
+  return a + b
+}
+console.log(add(1, 2))
+`.trim() }} />
+
+Now, instead of a single function that takes two arguments and returns a value, I'm going to rewrite this so that `add` is a function that takes a single argument, and returns another function which accepts a single argument, and then returns the sum of both arguments:
+
+<Editor console files={{ '/index.js': `
+const add = function (a) {
+  return function (b) {
+    return a + b
+  }
+}
+console.log(add(1)(2))
+`.trim() }} />
+
+To make this a bit tidier, the same can be written with arrow functions:
+
+<Editor console files={{ '/index.js': `
+const add = a => b => a + b
+console.log(add(1)(2))
+`.trim() }} />
+
+Taking a function that accepts multiple values, and transforming it to a 'stream' of functions that each only accept a single argument is called _currying_.
+
+---
+
+Writing functions in this style is a bit tedious though. We can write a higher-order function `curry` that will take a function that accepts multiple arguments, and return a curried version of that function:
+
+export const curry = `
+function curry(func) {
+  return function curried(...args) {
+    return args.length >= func.length
+      ? func.apply(this, args)
+      : curried.bind(this, ...args)
+  }
+}
+`
+
+<Editor console files={{ '/index.js': curry.concat`
+const add = curry((a, b) => a + b)
+console.log(add(1))
+console.log(add(1, 2))
+`.trim() }} />
+
+---
+
+Why go through all this trouble? Well, imagine you want to write another function that increments a number by one:
+
+<Editor console files={{ '/index.js': `
+const inc = n => 1 + n
+console.log(inc(2))
+`.trim() }} />
+
+This would work, but it's very similar to the `add` function we already wrote. Using the curried version of `add` above, writing an `inc` function becomes as simple as:
+
+<Editor console files={{ '/index.js': curry.concat`
+const add = curry((a, b) => a + b)
+const inc = add(1)
+console.log(inc(2))
+`.trim() }} />
+
+Taking a curried function and supplying fewer arguments than it expects is called _partial application_.
+
+---
+
+In [a previous post](./fp-intro) I talked about re-implementing `reduce`. Here's that `reduce` function, but wrapped with `curry`:
+
+```javascript
+const reduce = curry((fn, init, arr) => {
+  let response = init
+  for (let i = 0, l = arr.length; i < l; ++i) {
+    response = fn(response, arr[i])
+  }
+  return response
+})
+```
+
+With this, we can take our `add` function from earlier, and create a `sum` function that adds all the numbers in an array:
+
+<Editor console files={{ '/index.js': curry.concat(`
+const reduce = curry((fn, init, arr) => {
+  let response = init
+  for (let i = 0, l = arr.length; i < l; ++i) {
+    response = fn(response, arr[i])
+  }
+  return response
+})
+const sum = reduce((a, b) => a + b, 0)
+console.log(sum([1, 2, 3]))
+`).trim() }} />
+
+---
+
+These are fairly boring things to curry, so I'll share a fun example of currying I used recently.
+
+<Editor console files={{ '/index.js': curry.concat(`
+const on = curry((f, g, a, b) => f(g(a), g(b)))
+const prop = curry((key, obj) => obj[key])
+const localeCompare = curry((a, b) => a.localeCompare(b))
+const data = [{ id: 1, title: 'duplicate' }, { id: 2, title: 'duplicate' }, { id: 3, title: 'unique' }]
+console.log(data.sort(on(localeCompare, prop('title'))))
+`).trim() }} />

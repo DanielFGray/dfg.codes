@@ -1,5 +1,4 @@
 import clsx from 'clsx'
-import Link from 'next/link'
 
 export const socials = [
   { href: 'https://github.com/danielfgray', icon: GitHubIcon, label: 'GitHub' },
@@ -28,13 +27,13 @@ export function SocialLink({
 }) {
   return (
     <li className={clsx(className, 'flex')}>
-      <Link
+      <a
         href={href}
         className="group flex text-sm font-medium text-primary-800 transition hover:text-secondary-500 dark:text-primary-200 dark:hover:text-secondary-500"
       >
         <Icon className="h-6 w-6 flex-none fill-primary-500 transition group-hover:fill-secondary-500" />
         <span className="ml-4">{children}</span>
-      </Link>
+      </a>
     </li>
   )
 }

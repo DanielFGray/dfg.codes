@@ -1,0 +1,186 @@
+---
+title: Async Programming in Node.js
+category: computers
+tags: [javascript, nodejs, programming]
+date: '2018-06-07'
+description: 'Callbacks, Promises, Async/Await (oh my!)'
+---
+
+## Callbacks
+
+When Node.js was first introduced, it shipped a pattern of dealing with I/O that was very callback-heavy:
+
+```javascript
+const fs = require('fs')
+
+const filePath = './fileName'
+
+fs.writeFile(filePath, JSON.stringify({ n: Math.random() }), 'utf8', error => {
+  if (error) throw new Error('error writing file')
+  console.log('done writing')
+})
+
+fs.readFile(filePath, 'utf8', (error, content) => {
+  if (error) throw new Error('error reading file')
+  console.log(content)
+})
+```
+
+At first glance, you may not notice anything wrong, but this introduces a race condition. `fs.readFile` and `fs.writeFile` are `asynchronous`, which means they don't block JavaScript's [event loop][eventloop]. This has the effect that both writing and reading happens nearly instantly, and it's possible that writing may take longer than the time it takes for reading to start.
+
+To make sure that reading doesn't happen until after writing has occurred, many opted to nest their callbacks:
+
+```javascript
+const fs = require('fs')
+
+const file = './fileName'
+
+fs.writeFile(file, JSON.stringify({ n: Math.random() }), 'utf8', error => {
+  if (error) throw new Error('error writing file')
+  console.log('done writing')
+
+  fs.readFile(file, 'utf8', (error, content) => {
+    if (error) throw new Error('error reading file')
+    console.log(content)
+  })
+})
+```
+
+If you imagine a series of many more asynchronous actions happening after each other, introducing many levels of nesting, you can hopefully see why this becomes very awkward to deal with.
+
+## Promises
+
+Promises are one attempt to solve this problem. They provide a chainable API which makes it easy to describe a sequence of actions in a more linear manner (ie without all the nesting).
+
+```javascript
+const fs = require('fs/promises')
+
+const file = './fileName'
+
+const data = { n: Math.random() }
+
+fs.writeFile(file, JSON.stringify(data), 'utf8')
+  .catch(error => console.error({ message: 'error writing file', error: error.message }))
+  .then(() => console.log('done writing'))
+  .then(() => fs.readFile(file, 'utf8'))
+  .catch(error => console.error({ message: 'error reading file', error: error.message }))
+  .then(content => console.log(content))
+```
+
+The flow is more straight forward, there's no nesting, instead we're just defining some functions for what to do at each step.
+
+To take it one step further, let's get the file size after writing as well:
+
+```javascript
+const fs = require('fs/promises')
+
+const file = './fileName'
+
+fs.writeFile(file, JSON.stringify({ n: Math.random() }), 'utf8')
+  .catch(error => console.error({ message: 'error writing file', error: error.message }))
+  .then(() => console.log('done writing'))
+  .then(() => fs.stat(file))
+  .catch(error => console.error({ message: 'could not stat file', error: error.message }))
+  .then(stats => console.log('file is', stats.size, 'bytes'))
+  .then(() => fs.readFile(file, 'utf8'))
+  .catch(error => console.error({ message: 'error reading file', error: error.message }))
+  .then(contents => console.log(contents))
+```
+
+This is definitely an improvement over nesting, but to be honest, it's not great. The whole affair feels very alien, and what if you want to combine the output from `readFile` and `stat` into a new object?
+
+To take a step back from all of this and compare, here's the same idea, but using the synchronous versions of `read`, `write`, `stat`:
+
+```javascript
+const fs = require('fs')
+
+const file = './fileName'
+const data = { n: Math.random() }
+
+function writeFiles(file, data) {
+  fs.writeFileSync(file, JSON.stringify(data), 'utf8')
+  console.log('done writing')
+  const stats = fs.statSync(file)
+  const size = stats.size
+  const contents = fs.readFileSync(file, 'utf8')
+  console.log({ file: file, size: size, contents: contents })
+}
+writeFiles(file, data)
+```
+
+If this were just a one-off script for personal use, you could ignore the problems of synchronous code. If you were hosting a web server, other users accessing the server would be waiting on network requests while files were being read, because synchronous code blocks the entire process from doing anything else.
+
+## Async/Await
+
+Here's one way to write that code using async/await:
+
+```javascript
+const fs = require('fs/promises')
+
+const file = './fileName'
+const data = { n: Math.random() }
+
+async function writeFiles(file, data) {
+  await fs.writeFile(file, JSON.stringify(data), 'utf8')
+  const stats = await fs.stat(file)
+  const size = stats.size
+  const contents = await fs.readFile(file, 'utf8')
+  console.log({ file, size, contents })
+}
+writeFiles(file, data)
+```
+
+The difference from synchronous code using async/await is almost entirely just a case of wrapping the block in a function, removing the `Sync` suffix from each function, and prepending the `await` keyword to it.
+
+You can translate this back into promises:
+
+```javascript
+const fs = require('fs/promises')
+
+const writeFile = (file, data) =>
+  fs.writeFile(file, JSON.stringify(data), 'utf8')
+    .then(() => {
+      console.log('done writing')
+      return fs.stat(file)
+    })
+    .then(stats => {
+      const size = stats.size
+      return fs.readFile(file, 'utf8')
+        .then(contents => {
+          console.log({ file, size, contents })
+        })
+    })
+
+writeFile('./fileName', { n: Math.random() })
+```
+
+To access previous values in the promise chain you have to create closures over new promises chains. In more complex functions this can involve nesting promise chains inside promise chains...
+
+---
+
+Error handling is also significantly simpler with async/await since you can just use the try/catch pattern you're already familiar with:
+
+```javascript
+const fs = require('fs/promises')
+
+async function writeFiles(file, data) {
+  try {
+    await fs.writeFile(file, JSON.stringify(data), 'utf8')
+    console.log('done writing')
+    const stats = await fs.stat(file)
+    const size = stats.size
+    const contents = await fs.readFile(file, 'utf8')
+    console.log({ file, size, contents })
+  } catch (error) {
+    console.error(error)
+  }
+}
+```
+
+## Further reading
+
+- [Observables](https://gist.github.com/staltz/868e7e9bc2a7b8c1f754) - for async events that may generate multiple (possibly infinite) values over time
+- [Futures](https://github.com/fluture-js/Fluture) - an alternative to promises
+
+[eventloop]: https://www.youtube.com/watch?v=8aGhZQkoFbQ
+[broken]: https://medium.com/@avaq/broken-promises-2ae92780f33

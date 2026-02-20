@@ -15,7 +15,7 @@ export interface Comment {
   children: ReadonlyArray<Comment>
 }
 
-export function QueryProvider({ children }) {
+export function QueryProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useRef(
     new QueryClient({
       defaultOptions: {
@@ -32,8 +32,8 @@ export function QueryProvider({ children }) {
 }
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  import.meta.env.VITE_SUPABASE_URL ?? '',
+  import.meta.env.VITE_SUPABASE_ANON_KEY ?? '',
 )
 
 export function useAuth(): Session | null {
@@ -73,7 +73,7 @@ export function useSignIn() {
         provider,
         options: {
           ...options,
-          redirectTo: (process.env.NEXT_PUBLIC_URL ?? '').concat(redirectTo ?? '/'),
+          redirectTo: (import.meta.env.VITE_PUBLIC_URL ?? '').concat(redirectTo ?? '/'),
         },
       })
       if (error) throw error

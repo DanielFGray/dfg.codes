@@ -1,10 +1,14 @@
-import Link from 'next/link'
-import { navlinks } from '~/navlinks'
-import { classed } from '@tw-classed/react'
+import { Link } from 'react-router'
+import { navlinks } from '@/navlinks'
+import { Container } from '@/components/Container'
 
-import { Container } from '~/components/Container'
-
-const NavLink = classed(Link, 'transition hover:text-secondary-500 dark:hover:text-secondary-400')
+function NavLink({ to, children }: { to: string; children: React.ReactNode }) {
+  return (
+    <Link to={to} className="transition hover:text-secondary-500 dark:hover:text-secondary-400">
+      {children}
+    </Link>
+  )
+}
 
 export function Footer() {
   return (
@@ -15,7 +19,7 @@ export function Footer() {
             <div className="flex flex-col items-center justify-between gap-6 sm:flex-row">
               <div className="flex gap-6 text-sm font-medium text-primary-800 dark:text-primary-200">
                 {navlinks.map(link => (
-                  <NavLink key={link.href} href={link.href}>
+                  <NavLink key={link.href} to={link.href}>
                     {link.label}
                   </NavLink>
                 ))}

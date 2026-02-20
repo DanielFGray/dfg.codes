@@ -1,0 +1,246 @@
+---
+title: 'Functional Programming: a small introduction'
+category: computers
+tags:
+  - programming
+  - javascript
+  - fp
+date: '2017-01-10'
+description: "It seems there's some confusion on why you might use functional programming methods like map/reduce/filter, and so I thought I'd write something to try and explain why I think they're useful and interesting."
+---
+
+import imperativeSum from './examples/fp-intro/01-imperative-sum.js?raw'
+import reduceRight from './examples/fp-intro/02-reduce-right.js?raw'
+import recursiveReduce from './examples/fp-intro/03-recursive-reduce.js?raw'
+import imperativeSquared from './examples/fp-intro/04-imperative-squared.js?raw'
+import mapSquared from './examples/fp-intro/05-map-squared.js?raw'
+import mapImpl from './examples/fp-intro/06-map-impl.js?raw'
+import reduceToArray from './examples/fp-intro/07-reduce-to-array.js?raw'
+import mapViaReduce from './examples/fp-intro/08-map-via-reduce.js?raw'
+import flatmap from './examples/fp-intro/09-flatmap.js?raw'
+import filter from './examples/fp-intro/10-filter.js?raw'
+import partition from './examples/fp-intro/11-partition.js?raw'
+import pluck from './examples/fp-intro/12-pluck.js?raw'
+
+It seems there's some confusion on why you might use functional programming methods like map/reduce/filter, and so I thought I'd write something to try and explain why I think they're useful and interesting.
+
+---
+
+## Reduce
+
+Imagine you have an array of numbers, and you want to sum them.
+
+The common imperative approach is usually something like this:
+
+<Editor console files={{ '/index.js': imperativeSum }} />
+
+Functional programming offers an alternative approach:
+
+```javascript
+function add(a, b) {
+  return a + b
+}
+
+function sum(a) {
+  return a.reduce(add, 0)
+}
+
+sum(ints) // -> 10
+```
+
+I think about reduce as a way to join many values into a single value, it takes a series of values and builds up a new value.
+
+### How reduce works
+
+A simple implementation of `reduce()` might be something like this. Let's break it down step by step:
+
+<CH.Scrollycoding>
+
+## !!steps The Full Implementation
+
+Here's a simple implementation of `reduce()`. It takes a function, an initial value, and an array, then "folds" them together into a single result.
+
+```js ! reduce.js
+function reduce(func, initial, arr) {
+  let state = initial
+  for (let i = 0, l = arr.length; i < l; ++i) {
+    state = func(state, arr[i])
+  }
+  return state
+}
+```
+
+## !!steps Initialize State
+
+At the beginning of the function, `state` is initialized as a copy of the `initial` argument. This will be the starting point for our accumulation.
+
+```js ! reduce.js
+function reduce(func, initial, arr) {
+  // !focus
+  let state = initial
+  for (let i = 0, l = arr.length; i < l; ++i) {
+    state = func(state, arr[i])
+  }
+  return state
+}
+```
+
+## !!steps Iterate and Accumulate
+
+Every iteration, `state` is re-assigned with the value of calling `func(state, arr[i])`. When it calls the function given to it, it sends the previous value of `state` (or the initial value if it's the first iteration), and the current element in the array, as arguments to the given `func` so they may be accessed inside the given function when it's called.
+
+```js ! reduce.js
+function reduce(func, initial, arr) {
+  let state = initial
+  // !focus(1:3)
+  for (let i = 0, l = arr.length; i < l; ++i) {
+    state = func(state, arr[i])
+  }
+  return state
+}
+```
+
+## !!steps Return the Result
+
+Then finally, the last `state` is returned. This is the accumulated result of applying `func` to each element in the array.
+
+```js ! reduce.js
+function reduce(func, initial, arr) {
+  let state = initial
+  for (let i = 0, l = arr.length; i < l; ++i) {
+    state = func(state, arr[i])
+  }
+  // !focus
+  return state
+}
+```
+
+</CH.Scrollycoding>
+
+A function that takes another function as an argument (or returns another function) is called a _higher-order function_. `reduce` is a higher-order function that "folds" multiple values into a single value.
+
+---
+
+[Eloquent JavaScript](http://eloquentjavascript.net/) has [an exercise](http://eloquentjavascript.net/04_data.html) where they ask the reader to turn a simple array into a nested object, such that:
+
+```javascript
+const nums = [1, 2, 3] // an array of numbers
+
+// becomes
+
+const result = {
+  value: 1,
+  rest: {
+    value: 2,
+    rest: {
+      value: 3,
+      rest: null,
+    },
+  },
+}
+```
+
+There are a number of ways to solve this, but here is my approach:
+
+<Editor console files={{ '/index.js': reduceRight }} />
+
+`reduceRight` is the same as reduce except it starts at the end of the array, and works backwards.
+
+---
+
+Even though JavaScript is weakly typed, analyzing the type signatures of functions can still yield valuable information about how a function works.
+
+The type of functions used in _reducers_ is `a b -> a`, that is, a function that takes two arguments and returns a value that's the same type as the first argument.  
+`reduce` is a function with the signature `(b a -> b) b [a] -> b`: it accepts a reducer function, a thing `b`, a list `a`, and returns a thing the same type of `b`.
+
+I should note that recursive solutions are more typical in functional approaches.
+
+<Editor console height={350} files={{ '/index.js': recursiveReduce }} />
+
+## Map
+
+But reducing an array to a single value is only one of many things programmers do with arrays.
+
+What if you wanted to transform each element? Maybe you have an array of numbers and you want to multiply them all by themselves?
+
+The imperative approach might be something like:
+
+<Editor console files={{ '/index.js': imperativeSquared }} />
+
+In functional programming, when you want to iterate over a set and transform it, you would use `map`.
+
+<Editor console files={{ '/index.js': mapSquared }} />
+
+This is much tidier, in my opinion. When you see that big messy `for` loop, you have no idea what's going on until you fully read the whole thing and attempt to mentally parse it. When you see `map`, without reading anything but that word, you immediately know that you are creating a new array with all of the values changed by a given function.
+
+---
+
+`map` has a type signature of `(a -> b) [a] -> [b]`, it's a function that receives a function of type `a` which returns a thing of type `b` when given a list of `a`, and then returns a list of `b`s.
+
+---
+
+You could implement `map` like the following:
+
+<Editor console files={{ '/index.js': mapImpl }} />
+
+It follows much the same pattern as the `reduce` function. In fact, they're almost identical...
+
+If you recall, `reduce` always returns a single value. Well, an array, although it contains many items, is itself a single value. What if you give `reduce` an empty array as the initial value, and add to that array instead?
+
+<Editor console files={{ '/index.js': reduceToArray }} />
+
+It works just as expected!
+
+In fact, you can implement `map` as a wrapper around reduce:
+
+<Editor console files={{ '/index.js': mapViaReduce }} />
+
+If your map function returns another array, you can even "un-nest" or flatten the arrays into a single array:
+
+<Editor console files={{ '/index.js': flatmap }} />
+
+## Filter
+
+Filtering a list of values is another useful task to be done with an array.
+
+We can implement a `filter` function that iterates over the whole list, and returns a new list of values that only match a given function:
+
+<Editor console files={{ '/index.js': filter }} />
+
+### Partition
+
+A slight twist on filter, this splits an array into two arrays whether they match a predicate function:
+
+<Editor console files={{ '/index.js': partition }} />
+
+---
+
+I'm of the opinion unless you need to `break` or `continue` inside a loop, most use-cases of `for` to iterate over an array can usually be replaced with a higher order function like `reduce`, and get huge gains in readability.
+
+If you know that map operates on a function and an array, and you see the following, which one takes you longer to read and understand what it does?
+
+```javascript
+const items = [
+  { foo: 'a', bar: 1 },
+  { foo: 'b', bar: 2 },
+]
+
+// functional
+const newList = items.map(e => e.foo)
+
+// imperative
+const newList = []
+for (let i = 0; i < items.length; i++) {
+  newList.push(items[i].foo)
+}
+```
+
+## Helper functions
+
+That example above, taking an array of objects and retrieving the value of a particular properties from each one, is a common enough pattern that I'd like to make a special function for it:
+
+I can take this another step further and make a function specifically for retrieving values from an array of objects:
+
+<Editor console files={{ '/index.js': pluck }} />
+
+> If you're interested in learning more about functional programming, check out my post on [currying and partial application](./fp-curry-pa)

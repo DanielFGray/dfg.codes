@@ -1,88 +1,67 @@
-import Image from 'next/image'
-import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
-import { Popover, Transition } from '@headlessui/react'
+import { Link, useLocation } from 'react-router'
+import { Popover, PopoverButton, PopoverPanel, PopoverBackdrop, CloseButton } from '@headlessui/react'
 import clsx from 'clsx'
 
-import { Container } from '~/components/Container'
-import avatarImage from '~/images/avatar.jpg'
-import { Fragment, useEffect, useRef } from 'react'
+import { Container } from '@/components/Container'
+import { useEffect, useRef } from 'react'
 import { ChevronDownIcon, CloseIcon, MoonIcon, SunIcon } from './SocialIcons'
-import { navlinks } from '~/navlinks'
+import { navlinks } from '@/navlinks'
 
-function MobileNavItem({ href, children }) {
+function MobileNavItem({ href, children }: { href: string; children: React.ReactNode }) {
   return (
     <li>
-      <Popover.Button as={Link} href={href} className="block py-2">
+      <CloseButton as={Link} to={href} className="block py-2">
         {children}
-      </Popover.Button>
+      </CloseButton>
     </li>
   )
 }
 
-function MobileNavigation(props: Parameters<typeof Popover<'div'>>[0]) {
+function MobileNavigation(props: React.HTMLAttributes<HTMLElement>) {
   return (
     <Popover {...props} as="div">
-      <Popover.Button className="group flex items-center rounded-full bg-white/90 px-4 py-2 text-sm font-medium text-primary-800 shadow-lg shadow-primary-800/5 ring-1 ring-primary-900/5 backdrop-blur dark:bg-primary-800/90 dark:text-primary-200 dark:ring-primary-700 dark:hover:ring-white/20">
+      <PopoverButton className="group flex items-center rounded-full bg-white/90 px-4 py-2 text-sm font-medium text-primary-800 shadow-lg shadow-primary-800/5 ring-1 ring-primary-900/5 backdrop-blur dark:bg-primary-800/90 dark:text-primary-200 dark:ring-primary-700 dark:hover:ring-white/20">
         Menu
         <ChevronDownIcon className="ml-3 h-auto w-2 stroke-primary-500 group-hover:stroke-primary-700 dark:group-hover:stroke-primary-400" />
-      </Popover.Button>
-      <Transition.Root>
-        <Transition.Child
-          as={Fragment}
-          enter="duration-150 ease-out"
-          enterFrom="opacity-0"
-          enterTo="opacity-100"
-          leave="duration-150 ease-in"
-          leaveFrom="opacity-100"
-          leaveTo="opacity-0"
-        >
-          <Popover.Overlay className="fixed inset-0 z-50 bg-primary-800/40 backdrop-blur-sm dark:bg-black/80" />
-        </Transition.Child>
-        <Transition.Child
-          as={Fragment}
-          enter="duration-150 ease-out"
-          enterFrom="opacity-0 scale-95"
-          enterTo="opacity-100 scale-100"
-          leave="duration-150 ease-in"
-          leaveFrom="opacity-100 scale-100"
-          leaveTo="opacity-0 scale-95"
-        >
-          <Popover.Panel
-            focus
-            className="fixed inset-x-4 top-8 z-50 origin-top rounded-3xl bg-white p-8 ring-1 ring-primary-900/5 dark:bg-primary-900 dark:ring-primary-800"
-          >
-            <div className="flex flex-row-reverse items-center justify-between">
-              <Popover.Button aria-label="Close menu" className="-m-1 p-1">
-                <CloseIcon className="h-6 w-6 text-primary-500 dark:text-primary-400" />
-              </Popover.Button>
-              <h2 className="text-sm font-medium text-primary-600 dark:text-primary-400">
-                Navigation
-              </h2>
-            </div>
-            <nav className="mt-6">
-              <ul className="-my-2 divide-y divide-primary-100 text-base text-primary-800 dark:divide-primary-100/5 dark:text-primary-300">
-                {navlinks.map(link => (
-                  <MobileNavItem key={link.href} href={link.href}>
-                    {link.label}
-                  </MobileNavItem>
-                ))}
-              </ul>
-            </nav>
-          </Popover.Panel>
-        </Transition.Child>
-      </Transition.Root>
+      </PopoverButton>
+      <PopoverBackdrop
+        transition
+        className="fixed inset-0 z-50 bg-primary-800/40 backdrop-blur-sm transition duration-150 data-[closed]:opacity-0 dark:bg-black/80"
+      />
+      <PopoverPanel
+        focus
+        transition
+        className="fixed inset-x-4 top-8 z-50 origin-top rounded-3xl bg-white p-8 ring-1 ring-primary-900/5 transition duration-150 data-[closed]:scale-95 data-[closed]:opacity-0 dark:bg-primary-900 dark:ring-primary-800"
+      >
+        <div className="flex flex-row-reverse items-center justify-between">
+          <CloseButton aria-label="Close menu" className="-m-1 p-1">
+            <CloseIcon className="h-6 w-6 text-primary-500 dark:text-primary-400" />
+          </CloseButton>
+          <h2 className="text-sm font-medium text-primary-600 dark:text-primary-400">
+            Navigation
+          </h2>
+        </div>
+        <nav className="mt-6">
+          <ul className="-my-2 divide-y divide-primary-100 text-base text-primary-800 dark:divide-primary-100/5 dark:text-primary-300">
+            {navlinks.map(link => (
+              <MobileNavItem key={link.href} href={link.href}>
+                {link.label}
+              </MobileNavItem>
+            ))}
+          </ul>
+        </nav>
+      </PopoverPanel>
     </Popover>
   )
 }
 
-function NavItem({ href, children }) {
-  const isActive = usePathname() === href
+function NavItem({ href, children }: { href: string; children: React.ReactNode }) {
+  const isActive = useLocation().pathname === href
 
   return (
     <li>
       <Link
-        href={href}
+        to={href}
         className={clsx(
           'relative block px-3 py-2 transition',
           isActive
@@ -178,11 +157,10 @@ function Avatar({
   ...props
 }: { large?: boolean } & React.HTMLAttributes<HTMLAnchorElement>) {
   return (
-    <Link href="/" aria-label="Home" className={clsx(className, 'pointer-events-auto')} {...props}>
-      <Image
-        src={avatarImage}
+    <Link to="/" aria-label="Home" className={clsx(className, 'pointer-events-auto')} {...props}>
+      <img
+        src="/avatar.jpg"
         alt=""
-        sizes={large ? '4rem' : '2.25rem'}
         className={clsx(
           'rounded-full bg-primary-100 object-cover dark:bg-primary-800',
           large ? 'h-16 w-16' : 'h-9 w-9',
@@ -193,10 +171,10 @@ function Avatar({
 }
 
 export function Header() {
-  const isHomePage = usePathname() === '/'
+  const isHomePage = useLocation().pathname === '/'
 
-  const headerRef = useRef<undefined | HTMLDivElement>()
-  const avatarRef = useRef<undefined | HTMLDivElement>()
+  const headerRef = useRef<HTMLDivElement>(null)
+  const avatarRef = useRef<HTMLDivElement>(null)
   const isInitial = useRef(true)
 
   useEffect(() => {
@@ -208,6 +186,17 @@ export function Header() {
     }
 
     function updateHeaderStyles() {
+      if (!headerRef.current) return
+
+      // Article pages don't need the parallax header system
+      if (!isHomePage) {
+        setStyleProperty('--header-position', 'sticky')
+        setStyleProperty('--header-height', 'auto')
+        setStyleProperty('--header-mb', '0px')
+        setStyleProperty('--content-offset', '0px')
+        return
+      }
+
       const { top, height } = headerRef.current.getBoundingClientRect()
       const scrollY = clamp(window.scrollY, 0, document.body.scrollHeight - window.innerHeight)
 
@@ -277,17 +266,20 @@ export function Header() {
   return (
     <>
       <header
-        className="relative z-50 flex flex-col bg-gradient-to-b from-secondary-700 to-transparent"
+        className={clsx(
+          'relative z-50 flex flex-none flex-col',
+          isHomePage && 'bg-gradient-to-b from-secondary-700 to-transparent',
+        )}
         style={{
-          height: 'var(--header-height)',
-          marginBottom: 'var(--header-mb)',
+          height: 'var(--header-height, auto)',
+          marginBottom: 'var(--header-mb, 0px)',
         }}
       >
         {isHomePage && (
           <>
             <div
               ref={avatarRef}
-              className="order-last mt-[calc(theme(spacing.16)-theme(spacing.3))]"
+              className="order-last mt-[calc(var(--spacing)*16-var(--spacing)*3)]"
             />
             <Container
               className="top-0 order-last -mb-3 pt-3"
