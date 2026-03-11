@@ -1,9 +1,8 @@
-import { getArticleMeta, getArticleComponent, type ArticleMeta } from '../lib/articles'
+import { getArticleMeta, getArticleImporter, type ArticleMeta } from '../lib/articles'
 import { ArticleLayout } from '../components/ArticleLayout'
 import { Code } from '../components/Code'
 import { CH, InlineScrollycoding } from '../components/Scrollycoding'
-import { Editor } from '../components/Editor'
-import type { ReactNode } from 'react'
+import { lazy, Suspense, type ComponentType, type ReactNode } from 'react'
 
 function slugify(text: string): string {
   return text
@@ -33,16 +32,54 @@ function LinkedHeading({ as: Tag, children }: { as: 'h2' | 'h3' | 'h4'; children
   )
 }
 
+// Lazy-loaded heavy components — only fetched when an article actually uses them
+const LazyEditor = lazy(() => import('../components/Editor'))
+const LazyAdventure = lazy(() => import('../components/adventure/context').then(m => ({ default: m.Adventure })))
+const LazyAdventureCode = lazy(() => import('../components/adventure/AdventureCode').then(m => ({ default: m.AdventureCode })))
+const LazyPick = lazy(() => import('../components/adventure/Pick').then(m => ({ default: m.Pick })))
+const LazyVariant = lazy(() => import('../components/adventure/Variant').then(m => ({ default: m.Variant })))
+const LazyAlphaTexNotation = lazy(() => import('../components/AlphaTab').then(m => ({ default: m.AlphaTexNotation })))
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function withSuspense(Component: ComponentType<any>) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return function SuspenseWrapper(props: any) {
+    return (
+      <Suspense fallback={null}>
+        <Component {...props} />
+      </Suspense>
+    )
+  }
+}
+
 // MDX components available in articles
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mdxComponents: Record<string, any> = {
   Code,
   CH,
   Scrollycoding: InlineScrollycoding,
-  Editor,
+  Editor: withSuspense(LazyEditor),
+  Adventure: withSuspense(LazyAdventure),
+  AdventureCode: withSuspense(LazyAdventureCode),
+  Pick: withSuspense(LazyPick),
+  Variant: withSuspense(LazyVariant),
+  AlphaTexNotation: withSuspense(LazyAlphaTexNotation),
   h2: (props: { children: ReactNode }) => <LinkedHeading as="h2" {...props} />,
   h3: (props: { children: ReactNode }) => <LinkedHeading as="h3" {...props} />,
   h4: (props: { children: ReactNode }) => <LinkedHeading as="h4" {...props} />,
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const loadedArticles = new Map<string, ComponentType<any>>()
+
+async function loadArticle(slug: string) {
+  if (!loadedArticles.has(slug)) {
+    const importer = getArticleImporter(slug)
+    if (importer) {
+      const mod = await importer()
+      loadedArticles.set(slug, mod.default)
+    }
+  }
 }
 
 export async function loader({ params }: { params: { slug: string } }) {
@@ -50,14 +87,23 @@ export async function loader({ params }: { params: { slug: string } }) {
   if (!meta) {
     throw new Response('Not Found', { status: 404 })
   }
-  // Only return serializable metadata, not the Component
+  // Load MDX during pre-rendering so static HTML has full article content
+  await loadArticle(params.slug)
   return { meta }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function clientLoader({ params, serverLoader }: any) {
+  const data = await serverLoader()
+  await loadArticle(params.slug)
+  return data
+}
+// Load MDX chunk before hydration so the client matches pre-rendered HTML
+clientLoader.hydrate = true as const
+
 export default function ArticlePage({ loaderData }: { loaderData: { meta: ArticleMeta } }) {
   const { meta } = loaderData
-  // Get the component directly (not from loader - components aren't serializable)
-  const Content = getArticleComponent(meta.slug)
+  const Content = loadedArticles.get(meta.slug)
 
   if (!Content) {
     return <div>Article content not found</div>

@@ -7,6 +7,7 @@ import remarkFrontmatter from "remark-frontmatter";
 import remarkMdxFrontmatter from "remark-mdx-frontmatter";
 import { remarkReadingTime } from "./src/plugins/remark-reading-time";
 import { alphaTab } from "@coderline/alphatab-vite";
+import { articleMeta } from "./src/plugins/article-meta";
 import path from "path";
 
 const chConfig = {
@@ -66,6 +67,7 @@ export default defineConfig({
     tailwindcss(),
     crossOriginIsolation(),
     nodePreviewEntry(),
+    articleMeta(),
     mdx({
       remarkPlugins: [
         remarkFrontmatter,
