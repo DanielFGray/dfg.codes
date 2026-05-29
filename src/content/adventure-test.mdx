@@ -1,0 +1,429 @@
+---
+title: 'Choose Your Adventure: HTTP Servers in TypeScript'
+category: computers
+tags: [programming, typescript, express, elysia, effect]
+date: '2026-03-10'
+description: 'A prototype for interactive "choose your adventure" blog posts with animated code transitions.'
+---
+
+<Adventure dimensions={{ server: ["express", "elysia", "effect"], adapter: ["kysely", "raw"] }}>
+
+This post adapts to your choices. Pick a server framework and watch the code animate between implementations.
+
+<Pick dimension="server" label="Server framework:" />
+
+## Getting started
+
+First, create a new project and install dependencies:
+
+<Variant server="express">
+
+```sh terminal
+mkdir my-api && cd my-api
+npm init -y
+npm i express
+npm i -D typescript tsx @types/express
+```
+
+</Variant>
+
+<Variant server="elysia">
+
+```sh terminal
+mkdir my-api && cd my-api
+bun init -y
+bun add elysia
+```
+
+</Variant>
+
+<Variant server="effect">
+
+```sh terminal
+mkdir my-api && cd my-api
+npm init -y
+npm i effect @effect/platform @effect/platform-node
+npm i -D typescript tsx
+```
+
+</Variant>
+
+## Hello world
+
+Let's create a simple server that responds with "Hello world!":
+
+<AdventureCode dimension="server">
+<Variant value="express">
+
+```typescript src/index.ts
+import express from 'express'
+
+const app = express()
+
+app.get('/', (req, res) => {
+  res.send('Hello world!')
+})
+
+const port = process.env.PORT || 3000
+app.listen(port, () => {
+  console.log(`Express started on http://localhost:${port}`)
+})
+```
+
+</Variant>
+<Variant value="elysia">
+
+```typescript src/index.ts
+import { Elysia } from 'elysia'
+
+const app = new Elysia()
+
+app.get('/', () => 'Hello world!')
+
+app.listen(process.env.PORT || 3000, ({ hostname, port }) => {
+  console.log(`Elysia started on http://${hostname}:${port}`)
+})
+```
+
+</Variant>
+<Variant value="effect">
+
+```typescript src/index.ts
+import { HttpRouter, HttpServer, HttpServerResponse } from '@effect/platform'
+import { NodeHttpServer, NodeRuntime } from '@effect/platform-node'
+import { Layer } from 'effect'
+import { createServer } from 'node:http'
+
+const router = HttpRouter.empty.pipe(
+  HttpRouter.get('/', HttpServerResponse.text('Hello world!')),
+)
+
+const port = Number(process.env.PORT || 3000)
+
+const server = router.pipe(
+  HttpServer.serve(),
+  HttpServer.withLogAddress,
+  Layer.provide(NodeHttpServer.layer(createServer, { port })),
+)
+
+NodeRuntime.runMain(Layer.launch(server))
+```
+
+</Variant>
+</AdventureCode>
+
+<Variant server="express">
+
+Express is imported, then an instance is created and saved as `app`. The `app.get()` method registers a route handler for GET requests to `/`.
+
+</Variant>
+
+<Variant server="elysia">
+
+Elysia is a Bun-first HTTP framework. It uses a chainable API similar to Express, but with better type inference and significantly less boilerplate.
+
+</Variant>
+
+<Variant server="effect">
+
+The Effect HTTP platform uses a layered architecture. Routes are defined declaratively with `HttpRouter`, and the server is composed as an Effect `Layer` — making it easy to swap implementations for testing.
+
+</Variant>
+
+## Adding a route with parameters
+
+Now let's add a route that accepts a name parameter:
+
+<AdventureCode dimension="server">
+<Variant value="express">
+
+```typescript src/index.ts
+import express from 'express'
+
+const app = express()
+
+app.get('/', (req, res) => {
+  res.send('Hello world!')
+})
+
+app.get('/:name', (req, res) => {
+  res.send(`Hello ${req.params.name}!`)
+})
+
+const port = process.env.PORT || 3000
+app.listen(port, () => {
+  console.log(`Express started on http://localhost:${port}`)
+})
+```
+
+</Variant>
+<Variant value="elysia">
+
+```typescript src/index.ts
+import { Elysia } from 'elysia'
+
+const app = new Elysia()
+
+app.get('/', () => 'Hello world!')
+
+app.get('/:name', ({ params: { name } }) => `Hello ${name}!`)
+
+app.listen(process.env.PORT || 3000, ({ hostname, port }) => {
+  console.log(`Elysia started on http://${hostname}:${port}`)
+})
+```
+
+</Variant>
+<Variant value="effect">
+
+```typescript src/index.ts
+import { HttpRouter, HttpServer, HttpServerResponse } from '@effect/platform'
+import { NodeHttpServer, NodeRuntime } from '@effect/platform-node'
+import { Layer } from 'effect'
+import { createServer } from 'node:http'
+
+const router = HttpRouter.empty.pipe(
+  HttpRouter.get('/', HttpServerResponse.text('Hello world!')),
+  HttpRouter.get('/:name', (req) =>
+    req.params.name.pipe(
+      (name) => HttpServerResponse.text(`Hello ${name}!`),
+    ),
+  ),
+)
+
+const port = Number(process.env.PORT || 3000)
+
+const server = router.pipe(
+  HttpServer.serve(),
+  HttpServer.withLogAddress,
+  Layer.provide(NodeHttpServer.layer(createServer, { port })),
+)
+
+NodeRuntime.runMain(Layer.launch(server))
+```
+
+</Variant>
+</AdventureCode>
+
+Test it:
+
+```sh terminal
+curl localhost:3000/foo
+```
+
+You should see "Hello foo!" regardless of which framework you chose.
+
+## The database layer
+
+Now let's add a database. We'll use PostgreSQL.
+
+<Pick dimension="adapter" label="Query approach:" />
+
+<AdventureCode dimension="adapter">
+<Variant value="kysely">
+
+```typescript src/db.ts
+import { Kysely, PostgresDialect } from 'kysely'
+import type { DB } from 'kysely-codegen'
+import pg from 'pg'
+
+export const db = new Kysely<DB>({
+  dialect: new PostgresDialect({
+    pool: new pg.Pool({
+      connectionString: process.env.DATABASE_URL,
+    }),
+  }),
+})
+```
+
+</Variant>
+<Variant value="raw">
+
+```typescript src/db.ts
+import pg from 'pg'
+
+export const pool = new pg.Pool({
+  connectionString: process.env.DATABASE_URL,
+})
+
+export async function query<T extends pg.QueryResultRow>(
+  text: string,
+  params?: unknown[],
+) {
+  return pool.query<T>(text, params)
+}
+```
+
+</Variant>
+</AdventureCode>
+
+<Variant adapter="kysely">
+
+[Kysely](https://kysely.dev) is a type-safe query builder. Combined with `kysely-codegen`, it introspects your database and generates TypeScript types that match your schema.
+
+</Variant>
+
+<Variant adapter="raw">
+
+Using the `pg` driver directly gives you full control over your queries. We wrap `pool.query` in a typed helper for convenience.
+
+</Variant>
+
+## Data methods
+
+Now let's create functions to interact with a `movies` table:
+
+<AdventureCode dimension="adapter">
+<Variant value="kysely">
+
+```typescript src/movies.ts
+import { db } from './db'
+
+export async function list() {
+  return db
+    .selectFrom('movies')
+    .selectAll()
+    .execute()
+}
+
+export async function create(title: string, released: number) {
+  return db
+    .insertInto('movies')
+    .values({ title, released })
+    .returningAll()
+    .executeTakeFirstOrThrow()
+}
+```
+
+</Variant>
+<Variant value="raw">
+
+```typescript src/movies.ts
+import { query } from './db'
+
+interface Movie {
+  id: number
+  title: string
+  released: number
+}
+
+export async function list() {
+  const { rows } = await query<Movie>('SELECT * FROM movies')
+  return rows
+}
+
+export async function create(title: string, released: number) {
+  const { rows } = await query<Movie>(
+    'INSERT INTO movies (title, released) VALUES ($1, $2) RETURNING *',
+    [title, released],
+  )
+  return rows[0]
+}
+```
+
+</Variant>
+</AdventureCode>
+
+## Wiring it all together
+
+Finally, let's connect the routes to the database methods. This is where both choices come together:
+
+<AdventureCode dimension="server">
+<Variant value="express">
+
+```typescript src/index.ts
+import express from 'express'
+import * as movies from './movies'
+
+const app = express()
+app.use(express.json())
+
+app.get('/api/movies', async (req, res) => {
+  res.json(await movies.list())
+})
+
+app.post('/api/movies', async (req, res) => {
+  const { title, released } = req.body
+  res.json(await movies.create(title, released))
+})
+
+const port = process.env.PORT || 3000
+app.listen(port, () => {
+  console.log(`Express started on http://localhost:${port}`)
+})
+```
+
+</Variant>
+<Variant value="elysia">
+
+```typescript src/index.ts
+import { Elysia, t } from 'elysia'
+import * as movies from './movies'
+
+const app = new Elysia()
+
+app.get('/api/movies', () => movies.list())
+
+app.post('/api/movies', ({ body }) => movies.create(body.title, body.released), {
+  body: t.Object({
+    title: t.String(),
+    released: t.Number(),
+  }),
+})
+
+app.listen(process.env.PORT || 3000, ({ hostname, port }) => {
+  console.log(`Elysia started on http://${hostname}:${port}`)
+})
+```
+
+</Variant>
+<Variant value="effect">
+
+```typescript src/index.ts
+import { HttpRouter, HttpServer, HttpServerRequest, HttpServerResponse } from '@effect/platform'
+import { NodeHttpServer, NodeRuntime } from '@effect/platform-node'
+import { Effect, Layer, Schema } from 'effect'
+import { createServer } from 'node:http'
+import * as movies from './movies'
+
+const MovieBody = Schema.Struct({
+  title: Schema.String,
+  released: Schema.Number,
+})
+
+const router = HttpRouter.empty.pipe(
+  HttpRouter.get('/api/movies',
+    Effect.gen(function* () {
+      const data = yield* Effect.promise(() => movies.list())
+      return HttpServerResponse.json(data)
+    }),
+  ),
+  HttpRouter.post('/api/movies',
+    Effect.gen(function* () {
+      const req = yield* HttpServerRequest.HttpServerRequest
+      const body = yield* req.json.pipe(
+        Effect.flatMap(Schema.decodeUnknown(MovieBody)),
+      )
+      const movie = yield* Effect.promise(() => movies.create(body.title, body.released))
+      return HttpServerResponse.json(movie)
+    }),
+  ),
+)
+
+const port = Number(process.env.PORT || 3000)
+
+const server = router.pipe(
+  HttpServer.serve(),
+  HttpServer.withLogAddress,
+  Layer.provide(NodeHttpServer.layer(createServer, { port })),
+)
+
+NodeRuntime.runMain(Layer.launch(server))
+```
+
+</Variant>
+</AdventureCode>
+
+Notice how the `src/index.ts` changes with your server choice, while `src/movies.ts` and `src/db.ts` change with your adapter choice — the two dimensions are independent!
+
+</Adventure>

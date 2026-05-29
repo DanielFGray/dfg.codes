@@ -1,4 +1,4 @@
-import { AnnotationHandler, InnerLine, InnerPre, getPreRef } from 'codehike/code'
+import { AnnotationHandler, CustomPreProps, InnerLine, InnerPre, getPreRef } from 'codehike/code'
 import { useLayoutEffect, useRef } from 'react'
 
 /**
@@ -12,10 +12,7 @@ import { useLayoutEffect, useRef } from 'react'
  * ```
  */
 
-// Client component for scroll-to-focus behavior
-function PreWithFocus({
-  ...props
-}: React.ComponentProps<typeof InnerPre> & { ref?: React.RefObject<HTMLPreElement> }) {
+function PreWithFocus(props: CustomPreProps) {
   const ref = getPreRef(props)
   useScrollToFocus(ref)
   return <InnerPre merge={props} />

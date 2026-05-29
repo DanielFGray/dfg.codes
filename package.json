@@ -29,7 +29,7 @@
     "@tanstack/react-table": "^8.21.3",
     "@webcontainer/api": "^1.6.1",
     "clsx": "^2.1.1",
-    "codehike": "^1.0.4",
+    "codehike": "^1.0.7",
     "codemirror": "^6.0.2",
     "coi-serviceworker": "^0.1.7",
     "isbot": "^5",

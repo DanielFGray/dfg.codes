@@ -25,9 +25,15 @@ const chConfig = {
 // Build node-preview-entry.ts as a separate chunk so the static
 // node-preview.html in public/ can reference the bundled JS.
 function nodePreviewEntry(): Plugin {
+  let isSsr = false;
   return {
     name: "node-preview-entry",
+    apply: "build",
+    configResolved(config) {
+      isSsr = Boolean(config.build?.ssr);
+    },
     buildStart() {
+      if (isSsr) return;
       this.emitFile({
         type: "chunk",
         id: "src/node-preview-entry.ts",

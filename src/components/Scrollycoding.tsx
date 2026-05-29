@@ -8,7 +8,6 @@ import { mark } from '@/components/mark'
 import {
   getCodeblockLabel,
   withMetaAnnotations,
-  parseMetaAnnotations,
 } from '@/components/annotations'
 import React, { ReactNode, useState, useEffect, useMemo } from 'react'
 import clsx from 'clsx'

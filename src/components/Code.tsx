@@ -1,9 +1,10 @@
 import { HighlightedCode, Pre } from 'codehike/code'
+import { tokenTransitions } from '@/components/token-transitions'
 import { focus } from '@/components/focus'
 import { mark } from '@/components/mark'
 import { getCodeblockLabel, withMetaAnnotations } from '@/components/annotations'
 
-const handlers = [focus, mark]
+const handlers = [tokenTransitions, focus, mark]
 
 export function Code({ codeblock }: { codeblock: HighlightedCode }) {
   const label = getCodeblockLabel(codeblock)

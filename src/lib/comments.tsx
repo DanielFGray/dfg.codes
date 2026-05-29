@@ -65,14 +65,12 @@ export function useAuth(): Session | null {
 export function useSignIn() {
   return useMutation({
     mutationKey: ['sign_in'],
-    mutationFn: async function signIn({
-      provider,
-      options: { redirectTo, ...options },
-    }: SignInWithOAuthCredentials) {
+    mutationFn: async function signIn({ provider, options }: SignInWithOAuthCredentials) {
+      const { redirectTo, ...restOptions } = options ?? {}
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          ...options,
+          ...restOptions,
           redirectTo: (import.meta.env.VITE_PUBLIC_URL ?? '').concat(redirectTo ?? '/'),
         },
       })

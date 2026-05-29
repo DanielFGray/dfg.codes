@@ -18,7 +18,6 @@ export function Callout({
   const Title = isCollapsible ? 'summary' : 'div'
   const { collapsible: _, ...props } = _props as any
   return (
-    // @ts-expect-error polymorphic component
     <Element
       {...props}
       className="-mx-6 rounded-xl border-0 bg-primary-100/50 px-8 not-italic shadow-lg shadow-primary-400/40 dark:bg-primary-800/40 dark:text-primary-200 dark:shadow-black/40"
