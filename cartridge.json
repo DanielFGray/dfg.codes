@@ -1,0 +1,70 @@
+{
+  "apiVersion": "server-ansible/v2",
+  "name": "dfg-codes",
+  "postgres": [{ "database": "dfg_codes", "extensions": ["citext", "pgcrypto"] }],
+  "services": [
+    {
+      "name": "dfg-codes",
+      "image": "registry.cluster:5000/dfg-codes",
+      "hostPort": "dynamic",
+      "containerPort": 3000,
+      "healthCheck": { "type": "http", "path": "/" },
+      "cpu": 200,
+      "memoryMB": 384,
+      "networkMode": "bridge",
+      "command": "bun",
+      "args": ["server/index.ts"],
+      "routes": [{ "host": "dfg.codes" }],
+      "environment": [
+        { "name": "NODE_ENV", "value": "production" },
+        { "name": "PORT", "value": "3000" },
+        { "name": "VITE_ROOT_URL", "value": "https://dfg.codes" },
+        { "name": "DATABASE_NAME", "value": "dfg_codes" },
+        { "name": "DATABASE_AUTHENTICATOR", "value": "alchemy_dfg_codes_api" },
+        { "name": "DATABASE_OWNER", "database": "dfg_codes", "role": "owner" },
+        { "name": "DATABASE_VISITOR", "database": "dfg_codes", "role": "visitor" },
+        { "name": "OTEL_TRACES_EXPORTER", "value": "otlp" },
+        { "name": "OTEL_LOGS_EXPORTER", "value": "otlp" }
+      ],
+      "connections": [],
+      "secrets": [
+        {
+          "_tag": "PostgresCredentials",
+          "database": "dfg_codes",
+          "login": "api",
+          "urlEnv": "DATABASE_URL"
+        },
+        {
+          "_tag": "PostgresCredentials",
+          "database": "dfg_codes",
+          "login": "api",
+          "urlEnv": "AUTH_DATABASE_URL"
+        },
+        {
+          "_tag": "KvSecret",
+          "path": "secret/data/dfg-codes",
+          "key": "github_client_id",
+          "env": "GITHUB_CLIENT_ID"
+        },
+        {
+          "_tag": "KvSecret",
+          "path": "secret/data/dfg-codes",
+          "key": "github_client_secret",
+          "env": "GITHUB_CLIENT_SECRET"
+        }
+      ],
+      "migrate": {
+        "command": "bun",
+        "args": ["run", "db:migrate"],
+        "secrets": [
+          {
+            "_tag": "PostgresCredentials",
+            "database": "dfg_codes",
+            "login": "migration",
+            "urlEnv": "DATABASE_URL"
+          }
+        ]
+      }
+    }
+  ]
+}
