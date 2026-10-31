@@ -421,7 +421,7 @@ for (const file of files) {
   // Match: optional <div ...full-bleed...> wrapper, <CH.Scrollycoding ...props...>, content, closing tags
   content = content.replace(
     /(<CH\.Scrollycoding)(?:\s+[^>]*)?(>)([\s\S]*?)(<\/CH\.Scrollycoding>)/g,
-    (_match, openTag, gt, inner, closeTag) => {
+    (_match, openTag, gt, inner, _closeTag) => {
       return convertScrollyBlock(inner, warnings)
     },
   )
