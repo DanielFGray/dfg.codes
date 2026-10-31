@@ -1,7 +1,7 @@
 import { useSearchParams } from "react-router";
-import { SimpleLayout } from "@/components/SimpleLayout";
-import { getArticles, tagList, type ArticleMeta } from "@/lib/articles";
-import { TagLink, ArticleCard } from "@/components/Articles";
+import { SimpleLayout } from "#src/components/SimpleLayout.js";
+import { getArticles, tagList, type ArticleMeta } from "#src/lib/articles.js";
+import { TagLink, ArticleCard } from "#src/components/Articles.js";
 
 export async function loader() {
   const articles = await getArticles();

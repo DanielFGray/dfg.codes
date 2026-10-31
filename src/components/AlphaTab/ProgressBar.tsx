@@ -1,44 +1,38 @@
 import { formatTime } from '../../lib/alphatab-utils'
 
 interface ProgressBarProps {
-  currentSeconds: number
-  endSeconds: number
-  currentTick: number
-  endTick: number
+  currentTimeMs: number
+  endTimeMs: number
   isLoading: boolean
   onSeek: (e: React.ChangeEvent<HTMLInputElement>) => void
 }
 
 export function ProgressBar({
-  currentSeconds,
-  endSeconds,
-  currentTick,
-  endTick,
+  currentTimeMs,
+  endTimeMs,
   isLoading,
   onSeek,
 }: ProgressBarProps) {
-  const progressPercent = endSeconds > 0 ? (currentSeconds / endSeconds) * 100 : 0
+  const progressPercent = endTimeMs > 0 ? (currentTimeMs / endTimeMs) * 100 : 0
 
   return (
-    <div className="flex items-center gap-3">
-      {/* Time display */}
-      <div className="min-w-[80px] font-mono text-sm text-gray-600 dark:text-gray-300">
-        {formatTime(currentSeconds)} / {formatTime(endSeconds)}
+    <div className="flex min-w-0 flex-1 items-center gap-2">
+      <div className="min-w-[72px] shrink-0 font-mono text-xs text-gray-600 md:min-w-[86px] dark:text-gray-300">
+        {formatTime(currentTimeMs / 1000)} / {formatTime(endTimeMs / 1000)}
       </div>
 
-      {/* Progress bar */}
-      <div className="relative flex-1">
-        <div className="h-2 overflow-hidden rounded-full bg-gray-300 dark:bg-gray-600">
+      <div className="relative min-w-0 flex-1">
+        <div className="h-1.5 overflow-hidden rounded-full bg-gray-300 md:h-2 dark:bg-gray-600">
           <div
-            className="h-full bg-blue-500 transition-all duration-100"
+            className="h-full bg-secondary-500"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
         <input
           type="range"
           min={0}
-          max={endTick || 100}
-          value={currentTick}
+          max={endTimeMs || 100}
+          value={currentTimeMs}
           onChange={onSeek}
           disabled={isLoading}
           className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"

@@ -1,5 +1,5 @@
-import { Container } from '@/components/Container'
-import { SocialLinks, SocialLink } from '@/components/SocialIcons'
+import { Container } from '#src/components/Container.js'
+import { SocialLinks, SocialLink } from '#src/components/SocialIcons.js'
 
 function MailIcon(props: React.SVGProps<SVGSVGElement>) {
   return (

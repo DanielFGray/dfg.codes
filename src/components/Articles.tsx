@@ -1,10 +1,10 @@
 import { Link } from "react-router";
-export { ArticleLayout } from "@/components/ArticleLayout";
+export { ArticleLayout } from "#src/components/ArticleLayout.js";
 import clsx from "clsx";
-import { formatDate } from "@/lib/articles";
-import { labelize } from "@/lib/labelize";
-import { Card } from "@/components/Card";
-import type { ArticleMeta } from "@/lib/articles";
+import { formatDate } from "#src/lib/articles.js";
+import { labelize } from "#src/lib/labelize.js";
+import { Card } from "#src/components/Card.js";
+import type { ArticleMeta } from "#src/lib/articles.js";
 
 export function TagLink({
   children: tag,

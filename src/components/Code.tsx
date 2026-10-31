@@ -1,8 +1,8 @@
 import { HighlightedCode, Pre } from 'codehike/code'
-import { tokenTransitions } from '@/components/token-transitions'
-import { focus } from '@/components/focus'
-import { mark } from '@/components/mark'
-import { getCodeblockLabel, withMetaAnnotations } from '@/components/annotations'
+import { tokenTransitions } from '#src/components/token-transitions.js'
+import { focus } from '#src/components/focus.js'
+import { mark } from '#src/components/mark.js'
+import { getCodeblockLabel, withMetaAnnotations } from '#src/components/annotations.js'
 
 const handlers = [tokenTransitions, focus, mark]
 

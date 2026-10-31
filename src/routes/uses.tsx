@@ -1,22 +1,32 @@
-import { Card } from '@/components/Card'
-import { Section } from '@/components/Section'
-import { SimpleLayout } from '@/components/SimpleLayout'
+import { Card } from "#src/components/Card.js";
+import { Section } from "#src/components/Section.js";
+import { SimpleLayout } from "#src/components/SimpleLayout.js";
 
 function ToolsSection({ children, title }: { children: React.ReactNode; title: React.ReactNode }) {
   return (
     <Section title={title}>
       <ul className="space-y-16">{children}</ul>
     </Section>
-  )
+  );
 }
 
-function Tool({ title, href, children }: { title: string; href?: string; children?: React.ReactNode }) {
+function Tool({
+  title,
+  href,
+  children,
+}: {
+  title: string;
+  href?: string;
+  children?: React.ReactNode;
+}) {
   return (
     <Card as="li">
-      <Card.Title as="h3" href={href}>{title}</Card.Title>
+      <Card.Title as="h3" href={href}>
+        {title}
+      </Card.Title>
       <Card.Description>{children}</Card.Description>
     </Card>
-  )
+  );
 }
 
 export default function Uses() {
@@ -28,13 +38,12 @@ export default function Uses() {
       <div className="space-y-20">
         <ToolsSection title="Development tools">
           <Tool title="Linux">
-            I picked up using Linux in 2011, Ubuntu 11.04 Natty Narhwal was my first distro, I
-            then started the never ending quest of distro-hopping. I&apos;ve spent at least a
-            couple months using Ubuntu, Debian, Fedora, CentOS, Gentoo, NetBSD, OpenBSD, and Arch
-            Linux.
+            I picked up using Linux in 2011, Ubuntu 11.04 Natty Narhwal was my first distro, I then
+            started the never ending quest of distro-hopping. I&apos;ve spent at least a couple
+            months using Ubuntu, Debian, Fedora, CentOS, Gentoo, NetBSD, OpenBSD, and Arch Linux.
           </Tool>
           <Tool title="AwesomeWM">
-            {'My window manager of choice is '}
+            {"My window manager of choice is "}
             <a
               href="https://awesomewm.org/"
               className="font-bold underline hover:text-black hover:no-underline dark:hover:text-white"
@@ -66,12 +75,12 @@ export default function Uses() {
             <br />I was fortunate to buy this second-hand from a friend at half-price.
           </Tool>
           <Tool title="Cheap off-brand touchpad">
-            Something about using a touchpad with gestures makes me feel like a wizard with
-            special powers. I really like feeling like a wizard with special powers.
+            Something about using a touchpad with gestures makes me feel like a wizard with special
+            powers. I really like feeling like a wizard with special powers.
           </Tool>
           <Tool title="Chair">
-            I sit in a chair, it&apos;s a very a generic-looking office chair, more comfortable
-            than it looks, probably.
+            I sit in a chair, it&apos;s a very a generic-looking office chair, more comfortable than
+            it looks, probably.
           </Tool>
         </ToolsSection>
         <ToolsSection title="Musical equipment">
@@ -88,13 +97,13 @@ export default function Uses() {
             planning to try some Meinl soon.
           </Tool>
           <Tool title="Pearl Demon-Drive pedals">
-            I wanted to learn how to play double-strokes with my feet, I&apos;ve loved playing
-            with these pedals ever since.
+            I wanted to learn how to play double-strokes with my feet, I&apos;ve loved playing with
+            these pedals ever since.
           </Tool>
           <Tool title="Roland TM-2 module and RT-30K trigger">
-            I like to cheat at drums and use electronics to help improve clarity and consistency
-            of my sound, especially when playing metal at over 200bpm. Plus it sounds like a
-            machine gun. Double bass go brrrrrrrrrrrr.
+            I like to cheat at drums and use electronics to help improve clarity and consistency of
+            my sound, especially when playing metal at over 200bpm. Plus it sounds like a machine
+            gun. Double bass go brrrrrrrrrrrr.
           </Tool>
           <Tool title="Zoom Q8 camera">
             I saw a good deal on this a few months before Covid and bought it on a whim and it
@@ -107,19 +116,19 @@ export default function Uses() {
             forward to expanding my collection.
           </Tool>
           <Tool title="Midas MR18 digital mixer/interface">
-            I got this to replace a small 12-channel Behringer Xenyx. I still barely know how to
-            use this thing, and I keep hoping that one day someone will finally explain to me how
-            to properly work the compressor.
+            I got this to replace a small 12-channel Behringer Xenyx. I still barely know how to use
+            this thing, and I keep hoping that one day someone will finally explain to me how to
+            properly work the compressor.
           </Tool>
           <Tool title="Roland Octopad">
-            One summer I was hired to play by the pool at fancy hotel in a an enclosed tent that
-            was not large enough to accommadate a full size drum set as well as a couple other
-            musicians and their gear, and this thing came in great to get me through the gig, as
-            well as many other gigs at small clubs over the years, and been a great addition to my
-            kit with all of the different sounds it has.
+            One summer I was hired to play by the pool at fancy hotel in a an enclosed tent that was
+            not large enough to accommadate a full size drum set as well as a couple other musicians
+            and their gear, and this thing came in great to get me through the gig, as well as many
+            other gigs at small clubs over the years, and been a great addition to my kit with all
+            of the different sounds it has.
           </Tool>
         </ToolsSection>
       </div>
     </SimpleLayout>
-  )
+  );
 }

@@ -1,9 +1,9 @@
 import { Link } from "react-router";
-import { getArticles, tagList, type ArticleMeta } from "@/lib/articles";
-import { Container } from "@/components/Container";
-import { ArticleCard, TagLink } from "@/components/Articles";
-import { SocialLinks } from "@/components/SocialIcons";
-import { Button } from "@/components/Button";
+import { getArticles, tagList, type ArticleMeta } from "#src/lib/articles.js";
+import { Container } from "#src/components/Container.js";
+import { ArticleCard, TagLink } from "#src/components/Articles.js";
+import { SocialLinks } from "#src/components/SocialIcons.js";
+import { Button } from "#src/components/Button.js";
 import { projects, ProjectsGrid } from "./projects";
 
 export async function loader() {

@@ -1,9 +1,9 @@
-import { Container } from '@/components/Container'
-import { Prose } from '@/components/Prose'
-import { formatDate } from '@/lib/articles'
-import type { ArticleMeta } from '@/lib/articles'
-import { QueryProvider } from '@/lib/comments'
-import { CommentSection } from '@/components/Comments'
+import { Container } from '#src/components/Container.js'
+import { Prose } from '#src/components/Prose.js'
+import { formatDate } from '#src/lib/articles.js'
+import type { ArticleMeta } from '#src/lib/articles.js'
+import { QueryProvider } from '#src/lib/comments.js'
+import { CommentSection } from '#src/components/Comments.js'
 import { TagLink } from './Articles'
 
 interface Props {

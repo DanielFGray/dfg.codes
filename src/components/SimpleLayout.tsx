@@ -1,4 +1,4 @@
-import { Container } from '@/components/Container'
+import { Container } from '#src/components/Container.js'
 
 export function SimpleLayout({ title, intro, children }: {
   title: string; intro: string; children?: React.ReactNode

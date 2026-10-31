@@ -2,10 +2,10 @@ import { Link, useLocation } from 'react-router'
 import { Popover, PopoverButton, PopoverPanel, PopoverBackdrop, CloseButton } from '@headlessui/react'
 import clsx from 'clsx'
 
-import { Container } from '@/components/Container'
+import { Container } from '#src/components/Container.js'
 import { useEffect, useRef } from 'react'
 import { ChevronDownIcon, CloseIcon, MoonIcon, SunIcon } from './SocialIcons'
-import { navlinks } from '@/navlinks'
+import { navlinks } from '#src/navlinks.js'
 
 function MobileNavItem({ href, children }: { href: string; children: React.ReactNode }) {
   return (

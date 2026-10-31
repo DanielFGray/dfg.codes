@@ -1,8 +1,13 @@
-import { getArticleMeta, getArticleImporter, type ArticleMeta } from '../lib/articles'
+import {
+  getArticleMeta,
+  getArticleImporter,
+  type ArticleMeta,
+  type ArticleComponent,
+} from '../lib/articles'
 import { ArticleLayout } from '../components/ArticleLayout'
 import { Code } from '../components/Code'
 import { CH, InlineScrollycoding } from '../components/Scrollycoding'
-import { lazy, Suspense, type ComponentType, type ReactNode } from 'react'
+import { lazy, Suspense, type ComponentType, type LazyExoticComponent, type ReactNode } from 'react'
 
 function slugify(text: string): string {
   return text
@@ -70,16 +75,24 @@ const mdxComponents: Record<string, any> = {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const loadedArticles = new Map<string, ComponentType<any>>()
+const lazyArticles = new Map<string, LazyExoticComponent<ArticleComponent>>()
 
 async function loadArticle(slug: string) {
-  if (!loadedArticles.has(slug)) {
+  const importer = getArticleImporter(slug)
+  if (importer) {
+    await importer()
+  }
+}
+
+function getArticleComponent(slug: string): LazyExoticComponent<ArticleComponent> | undefined {
+  if (!lazyArticles.has(slug)) {
     const importer = getArticleImporter(slug)
     if (importer) {
-      const mod = await importer()
-      loadedArticles.set(slug, mod.default)
+      lazyArticles.set(slug, lazy(importer))
     }
   }
+
+  return lazyArticles.get(slug)
 }
 
 export async function loader({ params }: { params: { slug: string } }) {
@@ -87,8 +100,6 @@ export async function loader({ params }: { params: { slug: string } }) {
   if (!meta) {
     throw new Response('Not Found', { status: 404 })
   }
-  // Load MDX during pre-rendering so static HTML has full article content
-  await loadArticle(params.slug)
   return { meta }
 }
 
@@ -103,7 +114,7 @@ clientLoader.hydrate = true as const
 
 export default function ArticlePage({ loaderData }: { loaderData: { meta: ArticleMeta } }) {
   const { meta } = loaderData
-  const Content = loadedArticles.get(meta.slug)
+  const Content = getArticleComponent(meta.slug)
 
   if (!Content) {
     return <div>Article content not found</div>
@@ -111,7 +122,9 @@ export default function ArticlePage({ loaderData }: { loaderData: { meta: Articl
 
   return (
     <ArticleLayout meta={meta}>
-      <Content components={mdxComponents} />
+      <Suspense fallback={null}>
+        <Content components={mdxComponents} />
+      </Suspense>
     </ArticleLayout>
   )
 }

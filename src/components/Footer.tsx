@@ -1,6 +1,6 @@
 import { Link } from 'react-router'
-import { navlinks } from '@/navlinks'
-import { Container } from '@/components/Container'
+import { navlinks } from '#src/navlinks.js'
+import { Container } from '#src/components/Container.js'
 
 function NavLink({ to, children }: { to: string; children: React.ReactNode }) {
   return (

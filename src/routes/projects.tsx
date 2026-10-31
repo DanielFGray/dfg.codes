@@ -1,6 +1,6 @@
-import { Card } from "@/components/Card";
-import { SimpleLayout } from "@/components/SimpleLayout";
-import { LinkIcon } from "@/components/SocialIcons";
+import { Card } from "#src/components/Card.js";
+import { SimpleLayout } from "#src/components/SimpleLayout.js";
+import { LinkIcon } from "#src/components/SocialIcons.js";
 import clsx from "clsx";
 
 type Project = {

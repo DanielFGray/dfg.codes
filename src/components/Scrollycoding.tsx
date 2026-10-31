@@ -2,13 +2,13 @@ import { z } from 'zod/v4'
 import { Selectable, SelectionProvider, useSelectedIndex } from 'codehike/utils/selection'
 import { Block, CodeBlock, parseRoot, parseProps } from 'codehike/blocks'
 import { HighlightedCode, Pre, RawCode, highlight } from 'codehike/code'
-import { tokenTransitions } from '@/components/token-transitions'
-import { focus } from '@/components/focus'
-import { mark } from '@/components/mark'
+import { tokenTransitions } from '#src/components/token-transitions.js'
+import { focus } from '#src/components/focus.js'
+import { mark } from '#src/components/mark.js'
 import {
   getCodeblockLabel,
   withMetaAnnotations,
-} from '@/components/annotations'
+} from '#src/components/annotations.js'
 import React, { ReactNode, useState, useEffect, useMemo } from 'react'
 import clsx from 'clsx'
 

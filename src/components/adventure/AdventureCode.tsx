@@ -5,7 +5,7 @@ import {
   type ReactNode,
 } from 'react'
 import type { HighlightedCode } from 'codehike/code'
-import { Code } from '@/components/Code'
+import { Code } from '#src/components/Code.js'
 import { useAdventure } from './context'
 
 type VariantCodeMap = Record<string, HighlightedCode>

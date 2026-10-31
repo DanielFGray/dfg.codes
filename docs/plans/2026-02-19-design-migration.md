@@ -253,7 +253,7 @@ Adaptations:
 - `import Image from 'next/image'` → use `<img>` directly
 - `<Image src={avatarImage} alt="" sizes={...} className={...} />` → `<img src="/avatar.jpg" alt="" className={...} />`
 - `import { Popover, Transition } from '@headlessui/react'` → same (now installed)
-- `import { Container } from '~/components/Container'` → `import { Container } from '@/components/Container'`
+- `import { Container } from '~/components/Container'` → `import { Container } from '#src/components/Container'`
 - `import { navlinks } from '~/navlinks'` → `import { navlinks } from '@/navlinks'`
 - `import { ChevronDownIcon, CloseIcon, MoonIcon, SunIcon } from './SocialIcons'`
 - `Popover.Button as={Link}` needs `as={Link}` but the `href` prop → `to` prop
@@ -320,8 +320,8 @@ Replace the current basic layout with the nextjsblog layout structure:
 
 ```tsx
 import { Outlet } from 'react-router'
-import { Header } from '@/components/Header'
-import { Footer } from '@/components/Footer'
+import { Header } from '#src/components/Header'
+import { Footer } from '#src/components/Footer'
 
 export default function MainLayout() {
   return (
