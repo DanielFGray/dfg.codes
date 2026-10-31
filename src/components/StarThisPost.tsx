@@ -1,28 +1,27 @@
 import * as React from 'react'
 import debounce from 'lodash/debounce'
 import clsx from 'clsx'
-import { useGetLikes, useSendLike } from '@/lib/comments'
+import { useGetLikes, useSendLike } from '#src/lib/comments.js'
 
 // left click to increase
 // right click to decrease
 
-let MAX_CLICKS = 10
+const DEFAULT_MAX_CLICKS = 10
 
 const colors = ['text-yellow-200', 'text-yellow-300', 'text-yellow-400', 'text-yellow-500']
 
-const getColor = (clicks: number) =>
-  colors[Math.floor(lerp(clicks, 0, MAX_CLICKS, 0, colors.length - 1))]
+const getColor = (clicks: number, maxClicks: number) =>
+  colors[Math.floor(lerp(clicks, 0, maxClicks, 0, colors.length - 1))]
 
 export function StarPost({ slug }: { slug: string }) {
   const fetchLikes = useGetLikes(slug)
   const [clicks, setClicks] = React.useState(0)
   const starRef = React.useRef<SVGUseElement>(null)
+  const maxClicks = fetchLikes.data?.max ?? DEFAULT_MAX_CLICKS
+  const totalStars = fetchLikes.data
+    ? fetchLikes.data.total - (fetchLikes.data.max - fetchLikes.data.available) + clicks
+    : 0
 
-  React.useEffect(() => {
-    if (fetchLikes.data) {
-      MAX_CLICKS = fetchLikes.data?.max
-    }
-  }, [fetchLikes.data?.max])
   React.useEffect(() => {
     if (fetchLikes.data) {
       setClicks(fetchLikes.data.max - fetchLikes.data.available)
@@ -46,7 +45,7 @@ export function StarPost({ slug }: { slug: string }) {
     }
   }
   function incFill() {
-    if (fetchLikes.data && clicks < fetchLikes.data.max) {
+    if (fetchLikes.data && clicks < maxClicks) {
       starRef.current?.classList.add('ping')
       setClicks(c => {
         sendClicks.current(c + 1)
@@ -58,6 +57,7 @@ export function StarPost({ slug }: { slug: string }) {
   return (
     <button
       className="starButton border-0 bg-transparent outline-0 focus:outline-1 focus:outline-primary-500"
+      aria-label={`${totalStars} stars`}
       onClick={ev => {
         if (ev.shiftKey) decFill()
         else incFill()
@@ -72,7 +72,8 @@ export function StarPost({ slug }: { slug: string }) {
         height="250"
         width="250"
         viewBox="0 0 24 24"
-        className={clsx('drop-shadow', getColor(clicks), clicks == MAX_CLICKS && 'spin')}
+        className={clsx('drop-shadow', getColor(clicks, maxClicks), clicks === maxClicks && 'spin')}
+        aria-hidden="true"
       >
         <defs>
           <path
@@ -88,7 +89,7 @@ export function StarPost({ slug }: { slug: string }) {
             strokeWidth="2"
             className="transition-all duration-300 ease-out"
             style={{
-              clipPath: `inset(${100 - lerp(clicks, 0, MAX_CLICKS, 0, 100)}% 0% 0% 0%)`,
+              clipPath: `inset(${100 - lerp(clicks, 0, maxClicks, 0, 100)}% 0% 0% 0%)`,
             }}
           />
           <use xlinkHref="#starShape" strokeWidth="0.2" fill="none" stroke="currentColor" />
@@ -110,10 +111,7 @@ export function StarPost({ slug }: { slug: string }) {
             fontWeight="bold"
             fill="white"
           >
-            {fetchLikes.data
-              ? fetchLikes.data.total - (fetchLikes.data.max - fetchLikes.data.available) + clicks
-              : ''}
-            <span className="sr-only"> stars</span>
+            {totalStars}
           </text>
         </g>
       </svg>

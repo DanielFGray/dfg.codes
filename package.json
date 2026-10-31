@@ -1,28 +1,52 @@
 {
-  "name": "vite-mdx-poc",
+  "name": "dfg.codes",
+  "version": "0.2.0",
   "private": true,
-  "version": "0.0.0",
   "type": "module",
-  "scripts": {
-    "dev": "react-router dev",
-    "build": "react-router build",
-    "preview": "npx serve dist/client",
-    "typecheck": "bunx tsc --noEmit"
+  "imports": {
+    "#src/*": "./src/*",
+    "#server/*": "./server/*",
+    "#generated/*": "./generated/*"
   },
-  "infra": {
-    "dist": "dist/client"
+  "scripts": {
+    "predev": "run-s db:ensure",
+    "dev": "run-p dev:app dev:discussion",
+    "dev:app": "react-router dev",
+    "dev:discussion": "bun --env-file=.env --watch server/dev.ts",
+    "build": "react-router build",
+    "env:init": "bun scripts/generateEnvFile.ts",
+    "start": "bun server/index.ts",
+    "pretest:e2e": "run-s build",
+    "test:e2e": "node --env-file=.env ./node_modules/playwright/cli.js test",
+    "test": "run-s lint typecheck test:e2e",
+    "lint": "oxlint .",
+    "typecheck": "bunx tsc --noEmit",
+    "gm": "bun --env-file=.env -b graphile-migrate",
+    "db:up": "docker compose up -d postgres",
+    "db:ensure": "bun --env-file=.env scripts/dbEnsure.ts",
+    "db:stop": "docker compose stop postgres",
+    "db:down": "docker compose down",
+    "db:setup": "bun --env-file=.env scripts/dbSetup.ts",
+    "db:reset": "bun run gm reset --erase",
+    "db:latest": "bun run gm watch --once",
+    "db:migrate": "graphile-migrate migrate",
+    "db:watch": "bun run gm watch",
+    "db:types": "bun --env-file=.env -b kysely-codegen --out-file ./generated/DB.ts",
+    "db:init": "NOCONFIRM=1 run-s db:up db:setup db:reset db:latest",
+    "init": "run-s env:init db:init"
   },
   "dependencies": {
     "@codemirror/lang-css": "^6.3.1",
     "@codemirror/lang-html": "^6.4.11",
     "@codemirror/lang-javascript": "^6.2.4",
     "@codemirror/lang-json": "^6.0.2",
-    "@coderline/alphatab": "alpha",
+    "@coderline/alphatab": "1.9.0-alpha.1785",
+    "@effect/platform-node": "^4.0.0-beta.74",
+    "@effect/sql-pg": "^4.0.0-beta.74",
     "@headlessui/react": "^2.2.9",
     "@mdx-js/react": "^3.1.1",
     "@mdx-js/rollup": "^3.1.0",
     "@react-router/node": "^7.11.0",
-    "@supabase/supabase-js": "^2.97.0",
     "@tailwindcss/forms": "^0.5.11",
     "@tailwindcss/typography": "^0.5.19",
     "@tanstack/react-query": "^5.90.21",
@@ -32,8 +56,13 @@
     "codehike": "^1.0.7",
     "codemirror": "^6.0.2",
     "coi-serviceworker": "^0.1.7",
+    "effect": "^4.0.0-beta.74",
+    "graphile-migrate": "^1.4.1",
     "isbot": "^5",
+    "kysely": "^0.29.2",
     "lodash": "^4.17.23",
+    "npm-run-all": "^4.1.5",
+    "pg": "^8.21.0",
     "react": "^18.3.1",
     "react-aria-components": "^1.15.1",
     "react-dom": "^18.3.1",
@@ -47,18 +76,29 @@
     "zod": "^4.2.1"
   },
   "devDependencies": {
-    "@coderline/alphatab-vite": "alpha",
+    "@coderline/alphatab-vite": "1.9.0-alpha.1785",
+    "@effect/language-service": "^0.86.2",
+    "@playwright/test": "^1.60.0",
     "@react-router/dev": "^7.11.0",
     "@tailwindcss/vite": "^4.2.0",
     "@types/lodash": "^4.17.23",
     "@types/mdx": "^2.0.13",
+    "@types/node": "^24.10.1",
+    "@types/pg": "^8.20.0",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
+    "kysely-codegen": "^0.20.0",
     "oxfmt": "^0.34.0",
     "oxlint": "^1.49.0",
     "tailwindcss": "^4.2.0",
     "typescript": "~5.6.2",
     "vite": "^6.0.5"
+  },
+  "overrides": {
+    "effect": "^4.0.0-beta.74"
+  },
+  "patchedDependencies": {
+    "@coderline/alphatab@1.9.0-alpha.1785": "patches/@coderline%2Falphatab@1.9.0-alpha.1785.patch"
   }
 }

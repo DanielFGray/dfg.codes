@@ -21,14 +21,15 @@ export default {
   appDirectory: "src",
   buildDirectory: "dist",
 
-  // Disable runtime SSR for pure static deployment
-  ssr: false,
+  // Keep prerendering for content pages, but enable a real server runtime so
+  // comments/auth/data can move behind server code.
+  ssr: true,
 
-  // Disable lazy route discovery - include all routes in initial manifest
-  // This is required for static deployment where /__manifest endpoint is not available
+  // Keep all routes in the initial manifest while the app straddles prerendered
+  // pages and server-backed dynamic features.
   routeDiscovery: { mode: "initial" },
 
-  // Pre-render all routes at build time
+  // Pre-render the mostly-static pages at build time.
   async prerender() {
     const slugs = getArticleSlugs();
     return [

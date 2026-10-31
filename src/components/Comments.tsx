@@ -2,17 +2,16 @@ import React, { useState, useRef, useCallback, forwardRef } from 'react'
 import ago from 's-ago'
 import { useLocation } from 'react-router'
 import {
-  useSignIn,
+  getGitHubAuthorizationHref,
   useAuth,
   useCreateComment,
-  useLogout,
   useDeleteComment,
   useCommentFetcher,
+  useLogout,
   type Comment as TComment,
-} from '@/lib/comments'
-import { type Provider } from '@supabase/supabase-js'
+} from '#src/lib/comments.js'
 import clsx from 'clsx'
-import { StarPost } from '@/components/StarThisPost'
+import { StarPost } from '#src/components/StarThisPost.js'
 
 function TrashIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -31,22 +30,41 @@ function ReplyIcon(props: React.SVGProps<SVGSVGElement>) {
 }
 
 const providers = [
-  // { provider: 'twitter', label: 'Twitter' },
   { provider: 'github', label: 'GitHub' },
 ] as const
 
-function SignInForm({ signIn }: { signIn: (provider: Provider) => void }) {
+function SignInForm({ href }: { href: string }) {
   return (
     <div className="flex flex-row justify-center gap-2">
-      {providers.map(({ provider }) => (
-        <button
-          key={provider}
-          className="inline-flex items-center rounded-md border border-transparent bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
-          onClick={() => signIn(provider)}
-        >
-          sign in with {provider}
-        </button>
-      ))}
+      <a
+        href={href}
+        className="inline-flex items-center rounded-md border border-transparent bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+      >
+        sign in with {providers[0].label}
+      </a>
+    </div>
+  )
+}
+
+function AuthNotice({
+  authAvailable,
+  href,
+  unavailable,
+}: {
+  authAvailable: boolean
+  href: string
+  unavailable: boolean
+}) {
+  return (
+    <div className="space-y-3">
+      <p className="mx-auto max-w-prose text-center text-sm italic text-primary-600 dark:text-primary-300">
+        {unavailable
+          ? 'Discussion sign-in is temporarily unavailable.'
+          : authAvailable
+          ? `Sign in with ${providers[0].label} to join the discussion.`
+          : 'GitHub sign-in is not configured yet, so posting is temporarily unavailable.'}
+      </p>
+      {authAvailable && !unavailable && <SignInForm href={href} />}
     </div>
   )
 }
@@ -54,19 +72,18 @@ function SignInForm({ signIn }: { signIn: (provider: Provider) => void }) {
 export function CommentSection() {
   const [replyId, setReplyId] = useState<null | number>(null)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
-  const session = useAuth()
-  const signin = useSignIn()
+  const auth = useAuth()
+  const session = auth.data?.session ?? null
+  const authAvailable = auth.data?.authAvailable ?? false
+  const authUnavailable = auth.status === 'error'
   const pathname = useLocation().pathname
   const slug = pathname.slice(pathname.lastIndexOf('/') + 1)
+  const signInHref = getGitHubAuthorizationHref(pathname)
   const { data: comments, error, status } = useCommentFetcher({ slug })
 
   const setReplyWithFocus = useCallback((id: number) => {
     inputRef.current?.focus()
     setReplyId(id)
-  }, [])
-
-  const signInMutation = useCallback((provider: Provider) => {
-    signin.mutate({ provider, options: { redirectTo: `/article/${slug}` } })
   }, [])
 
   return (
@@ -85,12 +102,16 @@ export function CommentSection() {
             <CommentForm
               ref={inputRef}
               slug={slug}
-              avatarUrl={session.user?.user_metadata.avatar_url}
+              avatarUrl={session.user.avatar_url}
               clearReplyId={() => setReplyId(null)}
               replyId={replyId}
             />
           ) : (
-            <SignInForm signIn={signInMutation} />
+            <AuthNotice
+              authAvailable={authAvailable}
+              href={signInHref}
+              unavailable={authUnavailable}
+            />
           )}
         </div>
         <div className="text-center">
@@ -103,7 +124,7 @@ export function CommentSection() {
           error={error}
           replyId={replyId}
           setReplyId={setReplyWithFocus}
-          sessionUserId={session?.user.id ?? null}
+          sessionUserId={session?.user.user_id ?? null}
           comments={comments}
           slug={slug}
         />
@@ -121,7 +142,7 @@ export function CommentList({
   sessionUserId,
   slug,
 }: {
-  comments: undefined | null | Array<TComment>
+  comments: undefined | null | ReadonlyArray<TComment>
   replyId: null | number
   status: 'error' | 'success' | 'pending'
   error: unknown
@@ -366,17 +387,14 @@ const CommentForm = forwardRef(function CommentForm(
                 </button>
               </div>
             </div>
-            <div className="flex-shrink-0">
+            <div className="flow-root">
               <button
-                type="reset"
-                onClick={() => {
-                  if (confirm('Are you sure you want to log out?')) {
-                    logout.mutate()
-                  }
-                }}
-                className="ml-auto inline-flex items-center rounded-md border border-transparent bg-transparent px-4 py-2 text-sm font-medium text-primary-700 shadow-sm outline outline-1 outline-red-200 hover:bg-red-600 hover:text-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:text-white dark:outline-red-900 dark:ring-offset-primary-800 dark:hover:outline-red-500"
+                type="button"
+                onClick={() => logout.mutate()}
+                className="inline-flex items-center rounded-md border border-transparent bg-transparent px-4 py-2 text-sm font-medium text-primary-700 shadow-sm outline outline-1 outline-red-200 hover:bg-red-600 hover:text-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 dark:text-white dark:outline-red-900 dark:ring-offset-primary-800 dark:hover:outline-red-500"
+                disabled={logout.isPending}
               >
-                log out
+                {logout.isPending ? 'logging out...' : 'log out'}
               </button>
             </div>
           </div>
