@@ -14,11 +14,11 @@
       "networkMode": "bridge",
       "command": "bun",
       "args": ["server/index.ts"],
-      "routes": [{ "host": "dfg.codes" }],
+      "routes": [{ "host": "blog.danielfgray.com" }],
       "environment": [
         { "name": "NODE_ENV", "value": "production" },
         { "name": "PORT", "value": "3000" },
-        { "name": "VITE_ROOT_URL", "value": "https://dfg.codes" },
+        { "name": "VITE_ROOT_URL", "value": "https://blog.danielfgray.com" },
         { "name": "DATABASE_NAME", "value": "dfg_codes" },
         { "name": "DATABASE_AUTHENTICATOR", "value": "alchemy_dfg_codes_api" },
         { "name": "DATABASE_OWNER", "database": "dfg_codes", "role": "owner" },
