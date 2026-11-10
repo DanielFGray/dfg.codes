@@ -33,14 +33,6 @@ export const projects = [
     description: "Effect-first JSX renderer with reactivity, routing, and SSR.",
     link: { href: "https://github.com/DanielFGray/fibrae", label: "github.com/DanielFGray/fibrae" },
   },
-  {
-    name: "effect-devtui",
-    description: "A terminal based observability dashboard for Effect apps",
-    link: {
-      href: "https://github.com/DanielFGray/effect-devtui",
-      label: "github.com/DanielFGray/effect-devtui",
-    },
-  },
 ] as const satisfies Project[];
 
 export default function Projects() {
