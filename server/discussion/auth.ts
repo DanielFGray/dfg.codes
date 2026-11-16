@@ -4,7 +4,7 @@ import { Effect, Option, Schema } from "effect";
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/unstable/http";
 
 import { AuthSession, AuthServiceError, AuthUser } from "../../src/services/discussion.js";
-import { executeQuery, executeTakeFirst, rootDb } from "../db.js";
+import { executeQuery, executeTakeFirst, withVisitorRole } from "../db.js";
 import { GitHubTokenPayload, GitHubUserPayload } from "./github-oauth-payload.js";
 
 class GitHubOAuthState extends Schema.Class<GitHubOAuthState>("GitHubOAuthState")({
@@ -159,69 +159,24 @@ const normalizeGitHubUsername = (login: string) => {
   return `github-${sanitized || "user"}`.slice(0, 32);
 };
 
-const resolveUniqueUsername = Effect.fnUntraced(function* (login: string) {
-  const base = normalizeGitHubUsername(login);
-
-  for (let index = 0; ; index += 1) {
-    const suffix = index === 0 ? "" : `-${index + 1}`;
-    const candidate = `${base.slice(0, 32 - suffix.length)}${suffix}`;
-    const existing = yield* executeTakeFirst(
-      rootDb.selectFrom("auth.users").select("id").where("username", "=", candidate).limit(1),
-    );
-
-    if (Option.isNone(existing)) {
-      return candidate;
-    }
-  }
-});
-
-const createSessionRow = Effect.fnUntraced(function* (userId: string) {
+/** Finds or creates the GitHub account's user and starts a session; returns the session token. */
+const signInGitHubUser = Effect.fnUntraced(function* (githubUser: GitHubUser) {
   const cookieId = randomHex(24);
   const secret = randomHex(32);
-  const expiresAt = new Date(Date.now() + sessionTtlMs);
-
-  yield* executeQuery(
-    rootDb.insertInto("hidden.sessions").values({
-      cookie_id: cookieId,
-      expires_at: expiresAt,
-      secret_hash: hashSecret(secret),
-      user_id: userId,
-    }),
+  const user = yield* callSessionUserFunction(
+    "auth.sign_in_github",
+    [
+      githubUser.id,
+      normalizeGitHubUsername(githubUser.login),
+      githubUser.avatar_url,
+      cookieId,
+      hashSecret(secret),
+      new Date(Date.now() + sessionTtlMs),
+    ],
+    "Signing in with GitHub failed",
   );
 
-  return {
-    expiresAt,
-    token: `${cookieId}.${secret}`,
-  };
-});
-
-const findOrCreateGitHubUser = Effect.fnUntraced(function* (githubUser: GitHubUser) {
-  const existingUser = yield* executeTakeFirst(
-    rootDb
-      .selectFrom("auth.oauth_accounts as oauth")
-      .innerJoin("auth.users as users", "users.id", "oauth.user_id")
-      .select(["users.id as user_id", "users.username", "users.avatar_url"])
-      .where("oauth.provider", "=", "github")
-      .where("oauth.provider_user_id", "=", githubUser.id)
-      .limit(1),
-  );
-
-  if (Option.isSome(existingUser)) {
-    return toAuthSession(existingUser.value);
-  }
-
-  const username = yield* resolveUniqueUsername(githubUser.login);
-  const createdUser = yield* executeTakeFirst(
-    rootDb
-      .insertInto("auth.users")
-      .values({
-        avatar_url: githubUser.avatar_url,
-        username,
-      })
-      .returning(["id as user_id", "username", "avatar_url"]),
-  );
-
-  if (Option.isNone(createdUser)) {
+  if (Option.isNone(user)) {
     return yield* Effect.fail(
       new AuthServiceError({
         reason: "oauth-failed",
@@ -230,16 +185,37 @@ const findOrCreateGitHubUser = Effect.fnUntraced(function* (githubUser: GitHubUs
     );
   }
 
-  yield* executeQuery(
-    rootDb.insertInto("auth.oauth_accounts").values({
-      provider: "github",
-      provider_user_id: githubUser.id,
-      user_id: createdUser.value.user_id,
-    }),
-  );
-
-  return toAuthSession(createdUser.value);
+  return { session: toAuthSession(user.value), token: `${cookieId}.${secret}` };
 });
+
+const SessionUser = Schema.Struct({
+  avatar_url: Schema.NullOr(Schema.String),
+  user_id: Schema.String,
+  username: Schema.String,
+});
+
+/**
+ * Calls an auth function as the visitor role. The function returns the session's user as JSON,
+ * or null when there is none. Only these functions may read or write the identity tables.
+ */
+const callSessionUserFunction = (
+  name: "auth.sign_in_github" | "auth.find_session",
+  args: ReadonlyArray<string | Date | null>,
+  failureMessage: string,
+) =>
+  withVisitorRole((db) =>
+    executeTakeFirst(
+      db.selectNoFrom((eb) => eb.fn<unknown>(name, args.map((arg) => eb.val(arg))).as("user")),
+    ),
+  ).pipe(
+    Effect.flatMap((row) =>
+      Schema.decodeUnknownEffect(Schema.NullOr(SessionUser))(
+        Option.isSome(row) ? row.value.user : null,
+      ),
+    ),
+    Effect.map(Option.fromNullOr),
+    Effect.mapError(toOAuthError(failureMessage)),
+  );
 
 const exchangeGitHubCode = Effect.fnUntraced(function* (rootUrl: string, code: string) {
   const { clientId, clientSecret } = requireGitHubConfiguration();
@@ -390,18 +366,6 @@ export const createConfiguredGitHubAuthorizationUrl = Effect.fnUntraced(function
   );
 });
 
-export const createDiscussionSession = Effect.fnUntraced(function* (userId: string) {
-  return yield* createSessionRow(userId).pipe(
-    Effect.mapError(
-      (error) =>
-        new AuthServiceError({
-          reason: "oauth-failed",
-          message: error instanceof Error ? error.message : "Creating the session failed",
-        }),
-    ),
-  );
-});
-
 export const completeGitHubAuthorization = Effect.fnUntraced(function* (
   rootUrl: string,
   code: string | null,
@@ -430,22 +394,12 @@ export const completeGitHubAuthorization = Effect.fnUntraced(function* (
 
   const accessToken = yield* exchangeGitHubCode(rootUrl, code);
   const githubUser = yield* fetchGitHubUser(accessToken);
-  const session = yield* findOrCreateGitHubUser(githubUser).pipe(
-    Effect.mapError((error) =>
-      error instanceof AuthServiceError
-        ? error
-        : new AuthServiceError({
-            reason: "oauth-failed",
-            message: error instanceof Error ? error.message : "Creating the GitHub user failed",
-          }),
-    ),
-  );
-  const persistedSession = yield* createDiscussionSession(session.user.user_id);
+  const { session, token } = yield* signInGitHubUser(githubUser);
 
   return {
     redirect: decodedState.value.redirect,
     session,
-    token: persistedSession.token,
+    token,
   };
 });
 
@@ -458,56 +412,21 @@ export const validateDiscussionSessionToken = Effect.fnUntraced(function* (
     return Option.none<ValidatedSession>();
   }
 
-  const row = yield* executeTakeFirst(
-    rootDb
-      .selectFrom("hidden.sessions as sessions")
-      .innerJoin("auth.users as users", "users.id", "sessions.user_id")
-      .select([
-        "sessions.cookie_id",
-        "sessions.expires_at",
-        "sessions.secret_hash",
-        "users.id as user_id",
-        "users.username",
-        "users.avatar_url",
-      ])
-      .where("sessions.cookie_id", "=", parsed.cookieId)
-      .limit(1),
-  ).pipe(
-    Effect.mapError(
-      (error) =>
-        new AuthServiceError({
-          reason: "oauth-failed",
-          message: error instanceof Error ? error.message : "Loading the session failed",
-        }),
-    ),
+  const user = yield* callSessionUserFunction(
+    "auth.find_session",
+    [parsed.cookieId, hashSecret(parsed.secret)],
+    "Loading the session failed",
   );
 
-  if (Option.isNone(row) || row.value.expires_at <= new Date()) {
-    return Option.none<ValidatedSession>();
-  }
-
-  const candidate = Buffer.from(hashSecret(parsed.secret), "hex");
-  const stored = Buffer.from(row.value.secret_hash, "hex");
-
-  if (candidate.length !== stored.length || !crypto.timingSafeEqual(candidate, stored)) {
-    return Option.none<ValidatedSession>();
-  }
-
-  return Option.some({
-    cookieId: row.value.cookie_id,
-    session: toAuthSession(row.value),
-  });
-});
-
-export const deleteDiscussionSession = Effect.fnUntraced(function* (cookieId: string) {
-  yield* executeQuery(rootDb.deleteFrom("hidden.sessions").where("cookie_id", "=", cookieId)).pipe(
-    Effect.map(() => undefined),
-    Effect.mapError(
-      (error) =>
-        new AuthServiceError({
-          reason: "oauth-failed",
-          message: error instanceof Error ? error.message : "Deleting the session failed",
-        }),
-    ),
+  return Option.map(
+    user,
+    (found): ValidatedSession => ({ cookieId: parsed.cookieId, session: toAuthSession(found) }),
   );
 });
+
+export const deleteDiscussionSession = (cookieId: string) =>
+  withVisitorRole((db) =>
+    executeQuery(
+      db.selectNoFrom((eb) => eb.fn<unknown>("auth.sign_out", [eb.val(cookieId)]).as("signed_out")),
+    ),
+  ).pipe(Effect.asVoid, Effect.mapError(toOAuthError("Deleting the session failed")));

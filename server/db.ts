@@ -7,31 +7,20 @@ import type { RequestContextValue } from "./discussion/request-context.js";
 
 pg.types.setTypeParser(20, (value: string) => Number(value));
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL must be set to use the local Postgres discussion services");
-}
-
 if (!process.env.AUTH_DATABASE_URL) {
   throw new Error("AUTH_DATABASE_URL must be set to use the local Postgres discussion services");
 }
-
-const rootPool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL,
-});
 
 const authPool = new pg.Pool({
   connectionString: process.env.AUTH_DATABASE_URL,
 });
 
-export const rootDb = new Kysely<DB>({
-  dialect: new PostgresDialect({ pool: rootPool }),
-});
-
-export const authDb = new Kysely<DB>({
+// The login does not inherit the visitor role's rights, so every query runs in a transaction
+// that switches to it: see withVisitorRole.
+const authDb = new Kysely<DB>({
   dialect: new PostgresDialect({ pool: authPool }),
 });
 
-export type DiscussionDatabase = typeof rootDb;
 export type DiscussionTransaction = Transaction<DB>;
 
 export class SqlError extends Schema.TaggedErrorClass<SqlError>()("SqlError", {
@@ -82,21 +71,34 @@ const requestSessionId = (context: RequestContextValue) =>
     onSome: (sessionCookieId) => sessionCookieId,
   });
 
-export function withAuthContext<A, E>(
+/** Runs `fn` as the visitor role, with the request's headers, address and session for RLS. */
+export const withAuthContext = <A, E>(
   context: RequestContextValue,
   fn: (db: DiscussionTransaction) => Effect.Effect<A, E, never>,
+): Effect.Effect<A, E | SqlError> =>
+  withVisitorRole(fn, {
+    "dfgcodes.headers": requestHeadersJson(context),
+    "dfgcodes.ip_address": requestIpAddress(context),
+    "dfgcodes.session_id": requestSessionId(context),
+  });
+
+/**
+ * Runs `fn` in a transaction that switches to the visitor role and sets `settings` until it
+ * ends. Signing in and finding a session run before a request has a session, so they pass none.
+ */
+export function withVisitorRole<A, E>(
+  fn: (db: DiscussionTransaction) => Effect.Effect<A, E, never>,
+  settings: Readonly<Record<string, string>> = {},
 ): Effect.Effect<A, E | SqlError> {
+  const configs = Object.entries({ role: visitorRole, ...settings }).map(
+    ([name, value]) => sql`set_config(${name}, ${value}, true)`,
+  );
+
   return Effect.callback<A, E | SqlError>((resume) => {
     void authDb
       .transaction()
       .execute(async (trx) => {
-        await sql`
-        select
-          set_config('role', ${visitorRole}, true),
-          set_config('dfgcodes.headers', ${requestHeadersJson(context)}, true),
-          set_config('dfgcodes.ip_address', ${requestIpAddress(context)}, true),
-          set_config('dfgcodes.session_id', ${requestSessionId(context)}, true)
-      `.execute(trx);
+        await sql`select ${sql.join(configs)}`.execute(trx);
 
         const exit = await Effect.runPromiseExit(fn(trx));
         if (Exit.isSuccess(exit)) {

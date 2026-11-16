@@ -20,7 +20,6 @@
         { "name": "PORT", "value": "3000" },
         { "name": "VITE_ROOT_URL", "value": "https://blog.danielfgray.com" },
         { "name": "DATABASE_NAME", "value": "dfg_codes" },
-        { "name": "DATABASE_AUTHENTICATOR", "value": "alchemy_dfg_codes_api" },
         { "name": "DATABASE_OWNER", "database": "dfg_codes", "role": "owner" },
         { "name": "DATABASE_VISITOR", "database": "dfg_codes", "role": "visitor" },
         { "name": "OTEL_TRACES_EXPORTER", "value": "otlp" },
@@ -28,12 +27,6 @@
       ],
       "connections": [],
       "secrets": [
-        {
-          "_tag": "PostgresCredentials",
-          "database": "dfg_codes",
-          "login": "api",
-          "urlEnv": "DATABASE_URL"
-        },
         {
           "_tag": "PostgresCredentials",
           "database": "dfg_codes",

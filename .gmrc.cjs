@@ -11,7 +11,6 @@ module.exports = {
     search_path: "public,auth,hidden",
   },
   placeholders: {
-    ":DATABASE_AUTHENTICATOR": "!ENV",
     ":DATABASE_VISITOR": "!ENV",
   },
   afterReset: ["!afterReset.sql"],
