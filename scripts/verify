@@ -1,0 +1,8 @@
+#!/bin/bash
+# What "checked" means for dfg.codes: `ops signoff` runs this on an exported tree, which has
+# no .git, no .env and no database. The Playwright tests need a running server and database,
+# so they stay in `bun run test`.
+set -euo pipefail
+
+bun run typecheck
+bun run lint
