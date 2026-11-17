@@ -2,7 +2,17 @@
 
 import { PgClient } from "@effect/sql-pg";
 import { NodeRuntime, NodeServices } from "@effect/platform-node";
-import { Config, Console, Schema as S, Duration, Effect, Redacted, Schedule } from "effect";
+import {
+  Config,
+  ConfigProvider,
+  Console,
+  Schema as S,
+  Duration,
+  Effect,
+  FileSystem,
+  Redacted,
+  Schedule,
+} from "effect";
 import { SqlClient } from "effect/unstable/sql";
 import { ChildProcess } from "effect/unstable/process";
 
@@ -74,23 +84,20 @@ const runScript = Effect.fnUntraced(function* (name: string) {
   }
 }, Effect.scoped);
 
-const ensureDatabase = Effect.gen(function* () {
-  const databaseUrl = yield* Config.string("DATABASE_URL");
-
-  yield* runScript("db:up");
-  yield* dbTest(databaseUrl, { maxTries: 7 });
-  yield* Console.log("Database is ready");
+// `ops dev db up` writes DATABASE_URL to .env, so this process's environment is stale
+// until it is read again. A missing key throws and exits non-zero.
+const readDatabaseUrl = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem;
+  const content = yield* fs.readFileString(".env");
+  return yield* Config.string("DATABASE_URL").parse(ConfigProvider.fromDotEnvContents(content));
 });
 
-const main = ensureDatabase.pipe(
-  Effect.catch(
-    Effect.fnUntraced(function* (error) {
-      yield* Console.error(error.message);
-      yield* runScript("init");
-      yield* ensureDatabase;
-    }),
-  ),
-  Effect.provide(NodeServices.layer),
-);
+// `ops dev db up` provisions the shared dev databases. This script never drops one to
+// recover: a failed connect check stops it with the error.
+const main = Effect.gen(function* () {
+  yield* runScript("db:up");
+  yield* dbTest(yield* readDatabaseUrl, { maxTries: 7 });
+  yield* Console.log("Database is ready");
+}).pipe(Effect.provide(NodeServices.layer));
 
 NodeRuntime.runMain(main);

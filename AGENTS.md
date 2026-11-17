@@ -3,6 +3,19 @@
 A React Router site with a comments-and-likes backend ("discussion"): an Effect
 server on Postgres in `server/`, migrations in `migrations/`.
 
+## Setup and database
+
+- A new checkout (a `git worktree add`, a fresh clone): `bun run setup`. It
+  installs, writes `.env`, runs `ops dev db up` and migrates. It never resets a
+  database.
+- The dev databases are shared on the ops cluster: `dfg_codes_dev` with
+  `_shadow` and `_test`. `ops dev db up` (`bun run db:up`) provisions them and
+  writes their URLs to `.env`; `bun run db:exec` opens psql.
+- `bun run db:latest` migrates. `bun run db:reset` erases the schema of
+  `dfg_codes_dev` (it is not a database drop), so run it only on purpose.
+- Never run `ops dev db drop` or `ops dev db reset` on `dfg_codes_dev` from agent
+  work. `bun run test:api` resets only the `_test` databases.
+
 ## Backend reference
 
 The backend follows ~/build/effect-web-template. Before you add or change a
