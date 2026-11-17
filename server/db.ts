@@ -124,3 +124,14 @@ export function withVisitorRole<A, E>(
       );
   });
 }
+
+/**
+ * The database the API's own pool is connected to. The API tests read it to refuse a run
+ * against a development database, since the pool, not the URL in the environment, is what
+ * the requests use.
+ */
+export const connectedDatabaseName = withVisitorRole((db) =>
+  executeQuery(db.selectNoFrom(sql<string>`current_database()`.as("name"))).pipe(
+    Effect.map((rows) => rows[0]?.name ?? ""),
+  ),
+);

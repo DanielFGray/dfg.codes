@@ -14,8 +14,8 @@ import {
   HttpServerRequest,
   HttpServerResponse,
 } from "effect/unstable/http";
-import { getCrossOriginHeaders } from "./cross-origin.js";
 import { ApiLive } from "./discussion/api.js";
+import { CrossOriginHeadersLive, DiscussionNotFoundLive, getRequestPathname } from "./routes.js";
 
 type RuntimePaths = {
   clientBuildDirectory: string;
@@ -56,10 +56,6 @@ const ReactRouterRequestHandlerLive = Layer.effect(
     return createRequestHandler(build, mode);
   })(),
 );
-
-function getRequestPathname(url: string): string {
-  return decodeURIComponent(new URL(url, "http://localhost").pathname);
-}
 
 const resolveStaticAssetPath = Effect.fnUntraced(function* (pathname: string) {
   if (pathname === "/") {
@@ -113,24 +109,6 @@ const maybeServeStaticAsset = Effect.fnUntraced(function* (pathname: string) {
 
   return Option.some(response);
 });
-
-const CrossOriginHeadersLive = HttpRouter.middleware(
-  (effect) =>
-    Effect.gen(function* () {
-      const request = yield* HttpServerRequest.HttpServerRequest;
-      const response = yield* effect;
-      const pathname = getRequestPathname(request.url);
-
-      return HttpServerResponse.setHeaders(response, getCrossOriginHeaders(pathname));
-    }),
-  { global: true },
-);
-
-const DiscussionNotFoundLive = HttpRouter.add(
-  "*",
-  "/api/*",
-  Effect.succeed(HttpServerResponse.text("Not found", { status: 404 })),
-);
 
 const ReactAppLive = HttpRouter.add(
   "*",
