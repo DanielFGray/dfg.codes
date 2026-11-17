@@ -2,7 +2,10 @@ import { defineConfig } from "vitest/config";
 
 // Every test file that reads the database. The `unit` project excludes them, so
 // `test:unit` runs with no database.
-const API_TESTS = ["server/test/discussion-api.test.ts"];
+const API_TESTS = [
+  "server/test/database-privileges.test.ts",
+  "server/test/discussion-api.test.ts",
+];
 
 export default defineConfig({
   test: {
