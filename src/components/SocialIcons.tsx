@@ -23,7 +23,7 @@ export function SocialLink({
   className?: string
   href?: string
   children: React.ReactNode
-  icon: (props: any) => JSX.Element
+  icon: (props: any) => React.ReactElement
 }) {
   return (
     <li className={clsx(className, 'flex')}>

@@ -141,7 +141,7 @@ function splitByHr(children: ReactNode): ReactNode[][] {
 
 /** Check if a React element is a Code component (has codeblock prop) */
 function isCodeElement(child: ReactNode): child is React.ReactElement<{ codeblock: HighlightedCode }> {
-  return React.isValidElement(child) && child.props != null && 'codeblock' in child.props
+  return React.isValidElement<object>(child) && child.props != null && 'codeblock' in child.props
 }
 
 /** Check if a code element has actual content (non-empty) */

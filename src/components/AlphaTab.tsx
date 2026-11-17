@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { AlphaTabApi, ScrollMode, model, synth } from '@coderline/alphatab'
+import { alphaTabAssetUrls } from 'gigbag.js'
 
 import { getColors, useColorScheme } from '../lib/alphatab-utils'
 import { PlayerControls } from './AlphaTab/PlayerControls'
@@ -651,12 +652,14 @@ export function AlphaTexNotation({
 
     const colors = getColors(isDark)
 
+    const assetUrls = alphaTabAssetUrls()
     const api = new AlphaTabApi(container, {
       core: {
         tex: true,
         engine: 'svg',
         logLevel: 1,
-        fontDirectory: '/font/',
+        scriptFile: assetUrls.scriptFile,
+        fontDirectory: assetUrls.fontDirectory,
       },
       display: {
         scale: initialDisplay.scale,
@@ -675,7 +678,7 @@ export function AlphaTexNotation({
         enableCursor: true,
         enableAnimatedBeatCursor: true,
         enableUserInteraction: true,
-        soundFont: '/soundfont/sonivox.sf2',
+        soundFont: assetUrls.soundFont,
         scrollMode: ScrollMode.Continuous,
       },
     })
