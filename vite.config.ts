@@ -6,7 +6,6 @@ import { remarkCodeHike, recmaCodeHike } from "codehike/mdx";
 import remarkFrontmatter from "remark-frontmatter";
 import remarkMdxFrontmatter from "remark-mdx-frontmatter";
 import { remarkReadingTime } from "./src/plugins/remark-reading-time";
-import { alphaTabAssets } from "gigbag.js/vite";
 import { articleMeta } from "./src/plugins/article-meta";
 import { applyCrossOriginHeaders } from "./server/cross-origin";
 import path from "path";
@@ -112,7 +111,6 @@ export default defineConfig(({ mode }) => {
         recmaPlugins: [[recmaCodeHike, chConfig]],
       }),
       reactRouter(),
-      alphaTabAssets(),
     ],
     resolve: {
       alias: {

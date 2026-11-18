@@ -1,3 +1,4 @@
+import { redirect } from 'react-router'
 import {
   getArticleMeta,
   getArticleImporter,
@@ -43,7 +44,6 @@ const LazyAdventure = lazy(() => import('../components/adventure/context').then(
 const LazyAdventureCode = lazy(() => import('../components/adventure/AdventureCode').then(m => ({ default: m.AdventureCode })))
 const LazyPick = lazy(() => import('../components/adventure/Pick').then(m => ({ default: m.Pick })))
 const LazyVariant = lazy(() => import('../components/adventure/Variant').then(m => ({ default: m.Variant })))
-const LazyAlphaTexNotation = lazy(() => import('../components/AlphaTab').then(m => ({ default: m.AlphaTexNotation })))
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function withSuspense(Component: ComponentType<any>) {
@@ -68,7 +68,6 @@ const mdxComponents: Record<string, any> = {
   AdventureCode: withSuspense(LazyAdventureCode),
   Pick: withSuspense(LazyPick),
   Variant: withSuspense(LazyVariant),
-  AlphaTexNotation: withSuspense(LazyAlphaTexNotation),
   h2: (props: { children: ReactNode }) => <LinkedHeading as="h2" {...props} />,
   h3: (props: { children: ReactNode }) => <LinkedHeading as="h3" {...props} />,
   h4: (props: { children: ReactNode }) => <LinkedHeading as="h4" {...props} />,
@@ -95,7 +94,14 @@ function getArticleComponent(slug: string): LazyExoticComponent<ArticleComponent
   return lazyArticles.get(slug)
 }
 
+// Posts that became a course on dfg.rocks. A 301 tells browsers and search engines the move is permanent.
+const COURSE_URL = 'https://dfg.rocks/courses/b923f9a1-ae77-4daa-b434-67a06a8435a9'
+const movedToCourse = new Set(['beginning-drums', 'rudimental-permutations'])
+
 export async function loader({ params }: { params: { slug: string } }) {
+  if (movedToCourse.has(params.slug)) {
+    throw redirect(COURSE_URL, 301)
+  }
   const meta = await getArticleMeta(params.slug)
   if (!meta) {
     throw new Response('Not Found', { status: 404 })

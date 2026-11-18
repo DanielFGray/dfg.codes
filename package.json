@@ -40,7 +40,6 @@
     "@codemirror/lang-html": "^6.4.11",
     "@codemirror/lang-javascript": "^6.2.4",
     "@codemirror/lang-json": "^6.0.2",
-    "@coderline/alphatab": "1.9.0",
     "@danielfgray/stompbox": "github:DanielFGray/effect-stompbox#v0.2.0",
     "@effect/platform-node": "^4.1.2",
     "@effect/sql-pg": "^4.1.2",
@@ -58,7 +57,6 @@
     "codemirror": "^6.0.2",
     "coi-serviceworker": "^0.1.7",
     "effect": "^4.1.2",
-    "gigbag.js": "github:DanielFGray/alphatab-kit#v0.4.1",
     "graphile-migrate": "^1.4.1",
     "isbot": "^5",
     "kysely": "^0.29.2",
@@ -100,8 +98,5 @@
   },
   "overrides": {
     "effect": "^4.1.2"
-  },
-  "patchedDependencies": {
-    "@coderline/alphatab@1.9.0": "patches/@coderline%2Falphatab@1.9.0.patch"
   }
 }
