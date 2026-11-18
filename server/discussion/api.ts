@@ -1,26 +1,18 @@
-import { Cause, Effect, Layer, Option, Match } from "effect";
+import { FailureBoundaryLayer } from "@danielfgray/stompbox/http/server";
+import { Effect, Layer, Option } from "effect";
 import { HttpServerRequest, HttpServerResponse } from "effect/http";
 import { HttpApiBuilder } from "effect/http-api";
+import { SqlClient } from "effect/sql/SqlClient";
 
-import {
-  AuthService,
-  AuthServiceError,
-  CommentsService,
-  CommentsServiceError,
-  LikesServiceError,
-  PostLikesService,
-} from "../../src/services/discussion.js";
+import { AuthService, CommentsService, PostLikesService } from "../../src/services/discussion.js";
 import {
   DiscussionApi,
-  DiscussionBadRequestError,
-  DiscussionForbiddenError,
-  DiscussionNotFoundError,
-  DiscussionSessionResponse,
   DiscussionServicesMiddleware,
+  DiscussionSessionResponse,
   DiscussionSuccess,
-  DiscussionUnauthorizedError,
-  DiscussionUnavailableError,
+  FailureBoundary,
 } from "../../src/services/discussion-api.js";
+import { toHttpError } from "../dbErrors.js";
 import {
   completeGitHubAuthorization,
   createGitHubAuthorizationRequest,
@@ -34,95 +26,6 @@ import {
 import { DiscussionRequestContextLayer, makeDiscussionRequestContext } from "./request-context.js";
 import { DiscussionServicesLive } from "../services/discussion-live.js";
 
-const mapAuthError = (error: AuthServiceError) => {
-  switch (error.reason) {
-    case "invalid-redirect":
-      return new DiscussionBadRequestError({ error: error.message });
-    case "not-authenticated":
-      return new DiscussionUnauthorizedError({ error: error.message });
-    case "oauth-failed":
-      return new DiscussionUnavailableError({ error: error.message });
-  }
-};
-
-const mapContextError = (error: AuthServiceError) =>
-  new DiscussionUnavailableError({ error: error.message });
-
-const mapUnavailableError = (error: { readonly message: string }) =>
-  new DiscussionUnavailableError({ error: error.message });
-
-const mapCommentReadError = (error: CommentsServiceError) => {
-  switch (error.reason) {
-    case "invalid-comment":
-      return new DiscussionBadRequestError({ error: error.message });
-    default:
-      return new DiscussionUnavailableError({ error: error.message });
-  }
-};
-
-const mapCommentWriteError = (error: CommentsServiceError) => {
-  switch (error.reason) {
-    case "comment-not-found":
-    case "parent-comment-not-found":
-      return new DiscussionNotFoundError({ error: error.message });
-    case "not-authorized":
-      return error.message === "A signed-in session is required"
-        ? new DiscussionUnauthorizedError({ error: error.message })
-        : new DiscussionForbiddenError({ error: error.message });
-    case "invalid-comment":
-      return new DiscussionBadRequestError({ error: error.message });
-  }
-};
-
-const mapLikesError = (error: LikesServiceError) => {
-  switch (error.reason) {
-    case "invalid-vote-count":
-      return new DiscussionBadRequestError({ error: error.message });
-    case "likes-unavailable":
-      return new DiscussionUnavailableError({ error: error.message });
-    default:
-      return new DiscussionUnavailableError({ error: error.message });
-  }
-};
-
-const responseForCause = (
-  cause: Cause.Cause<unknown>,
-): Effect.Effect<HttpServerResponse.HttpServerResponse, never, never> => {
-  const error = Cause.squash(cause);
-
-  return Match.type().pipe(
-    Match.when(Match.instanceOf(DiscussionBadRequestError), (error) =>
-      Effect.succeed(HttpServerResponse.jsonUnsafe({ error: error.error }, { status: 400 })),
-    ),
-
-    Match.when(Match.instanceOf(DiscussionForbiddenError), (error) =>
-      Effect.succeed(HttpServerResponse.jsonUnsafe({ error: error.error }, { status: 403 })),
-    ),
-
-    Match.when(Match.instanceOf(DiscussionNotFoundError), (error) =>
-      Effect.succeed(HttpServerResponse.jsonUnsafe({ error: error.error }, { status: 404 })),
-    ),
-
-    Match.when(Match.instanceOf(DiscussionUnavailableError), (error) =>
-      Effect.succeed(HttpServerResponse.jsonUnsafe({ error: error.error }, { status: 503 })),
-    ),
-
-    Match.when(Match.instanceOf(AuthServiceError), (error) => {
-      const mapped = mapAuthError(error);
-      return responseForCause(Cause.fail(mapped));
-    }),
-
-    Match.orElse(() =>
-      Effect.succeed(
-        HttpServerResponse.jsonUnsafe(
-          { error: error instanceof Error ? error.message : "Discussion auth failed" },
-          { status: 500 },
-        ),
-      ),
-    ),
-  )(error);
-};
-
 const getRequestOrigin = (request: HttpServerRequest.HttpServerRequest) => {
   const host = request.headers["x-forwarded-host"] ?? request.headers.host ?? "localhost";
   const protocol = request.headers["x-forwarded-proto"] ?? "http";
@@ -132,36 +35,90 @@ const getRequestOrigin = (request: HttpServerRequest.HttpServerRequest) => {
 const getRequestUrl = (request: HttpServerRequest.HttpServerRequest) =>
   new URL(request.url, getRequestOrigin(request));
 
-const makeDiscussionServicesLayer = (request: HttpServerRequest.HttpServerRequest) =>
+const makeDiscussionServicesLayer = (
+  request: HttpServerRequest.HttpServerRequest,
+  client: SqlClient,
+) =>
   validateDiscussionSessionToken(request.cookies[getDiscussionSessionCookie()]).pipe(
+    Effect.provideService(SqlClient, client),
     Effect.map((resolvedSession) =>
       DiscussionServicesLive.pipe(
+        Layer.provide(Layer.succeed(SqlClient, client)),
         Layer.provide(
           DiscussionRequestContextLayer(
             makeDiscussionRequestContext(
               request.headers,
-              Option.match(resolvedSession, {
-                onNone: () => Option.none(),
-                onSome: ({ session }) => Option.some(session),
-              }),
-              Option.match(resolvedSession, {
-                onNone: () => Option.none(),
-                onSome: ({ cookieId }) => Option.some(cookieId),
-              }),
+              Option.map(resolvedSession, ({ session }) => session),
+              Option.map(resolvedSession, ({ cookieId }) => cookieId),
             ),
           ),
         ),
       ),
     ),
-    Effect.mapError(mapContextError),
   );
 
-const DiscussionServicesMiddlewareLive = Layer.succeed(DiscussionServicesMiddleware, (httpApp) =>
-  Effect.flatMap(HttpServerRequest.HttpServerRequest, (request) =>
-    Effect.flatMap(makeDiscussionServicesLayer(request), (discussionLayer) =>
-      httpApp.pipe(Effect.provide(discussionLayer)),
-    ),
+const DiscussionServicesMiddlewareLive = Layer.effect(
+  DiscussionServicesMiddleware,
+  Effect.map(
+    Effect.service(SqlClient),
+    (client) => (httpApp) =>
+      Effect.flatMap(HttpServerRequest.HttpServerRequest, (request) =>
+        Effect.flatMap(makeDiscussionServicesLayer(request, client), (discussionLayer) =>
+          httpApp.pipe(Effect.provide(discussionLayer)),
+        ),
+      ),
   ),
+);
+
+const OAuthRoutesLive = HttpApiBuilder.group(DiscussionApi, "oauth", (handlers) =>
+  handlers
+    .handleRaw("githubAuth", ({ query }) =>
+      Effect.flatMap(HttpServerRequest.HttpServerRequest, (request) => {
+        const rootUrl = getRequestOrigin(request);
+
+        return createGitHubAuthorizationRequest(rootUrl, query.redirect).pipe(
+          Effect.flatMap((authorization) =>
+            HttpServerResponse.setCookie(
+              HttpServerResponse.redirect(authorization.url.toString()),
+              getGitHubOAuthStateCookie(),
+              authorization.stateCookieValue,
+              getGitHubOAuthStateCookieOptions(rootUrl),
+            ).pipe(Effect.orDie),
+          ),
+        );
+      }),
+    )
+    .handleRaw("githubCallback", () =>
+      Effect.flatMap(HttpServerRequest.HttpServerRequest, (request) => {
+        const rootUrl = getRequestOrigin(request);
+        const url = getRequestUrl(request);
+
+        return completeGitHubAuthorization(
+          rootUrl,
+          url.searchParams.get("code"),
+          url.searchParams.get("state"),
+          request.cookies[getGitHubOAuthStateCookie()],
+        ).pipe(
+          Effect.flatMap((completed) =>
+            HttpServerResponse.setCookie(
+              HttpServerResponse.redirect(completed.redirect),
+              getDiscussionSessionCookie(),
+              completed.token,
+              getDiscussionSessionCookieOptions(rootUrl),
+            ).pipe(
+              Effect.flatMap((response) =>
+                HttpServerResponse.expireCookie(
+                  response,
+                  getGitHubOAuthStateCookie(),
+                  getGitHubOAuthStateCookieOptions(rootUrl),
+                ),
+              ),
+              Effect.orDie,
+            ),
+          ),
+        );
+      }),
+    ),
 );
 
 const DiscussionRoutesLive = HttpApiBuilder.group(DiscussionApi, "discussion", (handlers) =>
@@ -177,147 +134,72 @@ const DiscussionRoutesLive = HttpApiBuilder.group(DiscussionApi, "discussion", (
                   session: Option.getOrNull(session),
                 }),
             ),
-            Effect.mapError(mapContextError),
           ),
         ),
       ),
-    )
-    .handleRaw(
-      "githubAuth",
-      ({ query }) => {
-        const requestEffect = HttpServerRequest.HttpServerRequest;
-
-        return Effect.flatMap(requestEffect, (request) => {
-        const rootUrl = getRequestOrigin(request);
-
-        return createGitHubAuthorizationRequest(rootUrl, query.redirect).pipe(
-          Effect.flatMap((authorization) =>
-            HttpServerResponse.setCookie(
-              HttpServerResponse.redirect(authorization.url.toString()),
-              getGitHubOAuthStateCookie(),
-              authorization.stateCookieValue,
-              getGitHubOAuthStateCookieOptions(rootUrl),
-            ),
-          ),
-          Effect.catchCause(responseForCause),
-        );
-        });
-      },
-    )
-
-    .handleRaw(
-      "githubCallback",
-      () =>
-        Effect.flatMap(HttpServerRequest.HttpServerRequest, (request) => {
-          const rootUrl = getRequestOrigin(request);
-          const url = getRequestUrl(request);
-
-          return completeGitHubAuthorization(
-            rootUrl,
-            url.searchParams.get("code"),
-            url.searchParams.get("state"),
-            request.cookies[getGitHubOAuthStateCookie()],
-          ).pipe(
-            Effect.flatMap((completed) =>
-              HttpServerResponse.setCookie(
-                HttpServerResponse.redirect(completed.redirect),
-                getDiscussionSessionCookie(),
-                completed.token,
-                getDiscussionSessionCookieOptions(rootUrl),
-              ).pipe(
-                Effect.flatMap((response) =>
-                  HttpServerResponse.expireCookie(
-                    response,
-                    getGitHubOAuthStateCookie(),
-                    getGitHubOAuthStateCookieOptions(rootUrl),
-                  ),
-                ),
-              ),
-            ),
-            Effect.catchCause(responseForCause),
-          );
-        }),
     )
 
     .handle("getCommentStats", () =>
-      Effect.service(CommentsService).pipe(
-        Effect.flatMap((comments) =>
-          comments.getCommentStats().pipe(Effect.mapError(mapCommentReadError)),
-        ),
-      ),
+      Effect.flatMap(Effect.service(CommentsService), (comments) => comments.getCommentStats()),
     )
 
     .handle("getThreadedComments", ({ query }) =>
-      Effect.service(CommentsService).pipe(
-        Effect.flatMap((comments) =>
-          comments.getThreadedComments(query.slug).pipe(Effect.mapError(mapCommentReadError)),
-        ),
+      Effect.flatMap(Effect.service(CommentsService), (comments) =>
+        comments.getThreadedComments(query.slug),
       ),
     )
 
     .handle("createComment", ({ payload }) =>
-      Effect.service(CommentsService).pipe(
-        Effect.flatMap((comments) =>
-          comments.createComment(payload).pipe(Effect.mapError(mapCommentWriteError)),
-        ),
+      Effect.flatMap(Effect.service(CommentsService), (comments) =>
+        comments.createComment(payload),
       ),
     )
 
     .handle("deleteComment", ({ params }) =>
-      Effect.service(CommentsService).pipe(
-        Effect.flatMap((comments) =>
-          comments
-            .deleteComment(params.commentId)
-            .pipe(
-              Effect.mapError(mapCommentWriteError),
-              Effect.as(new DiscussionSuccess({ success: true })),
-            ),
-        ),
+      Effect.flatMap(Effect.service(CommentsService), (comments) =>
+        comments
+          .deleteComment(params.commentId)
+          .pipe(Effect.as(new DiscussionSuccess({ success: true }))),
       ),
     )
 
     .handle("getTopPosts", () =>
-      Effect.service(CommentsService).pipe(
-        Effect.flatMap((comments) =>
-          comments.getTopPosts().pipe(Effect.mapError(mapCommentReadError)),
-        ),
-      ),
+      Effect.flatMap(Effect.service(CommentsService), (comments) => comments.getTopPosts()),
     )
 
     .handle("getLikes", ({ query }) =>
-      Effect.service(PostLikesService).pipe(
-        Effect.flatMap((likes) => likes.getLikes(query.slug).pipe(Effect.mapError(mapLikesError))),
-      ),
+      Effect.flatMap(Effect.service(PostLikesService), (likes) => likes.getLikes(query.slug)),
     )
 
     .handle("sendLike", ({ payload }) =>
-      Effect.service(PostLikesService).pipe(
-        Effect.flatMap((likes) => likes.sendLike(payload).pipe(Effect.mapError(mapLikesError))),
-      ),
+      Effect.flatMap(Effect.service(PostLikesService), (likes) => likes.sendLike(payload)),
     )
 
     .handle("signOut", () =>
       Effect.flatMap(HttpServerRequest.HttpServerRequest, (request) =>
         Effect.service(AuthService).pipe(
           Effect.flatMap((auth) =>
-            auth.signOut().pipe(
-              Effect.mapError(mapUnavailableError),
-              Effect.flatMap(() =>
-                HttpServerResponse.expireCookie(
-                  HttpServerResponse.jsonUnsafe({ success: true as const }),
-                  getDiscussionSessionCookie(),
-                  getDiscussionSessionCookieOptions(getRequestOrigin(request)),
+            auth
+              .signOut()
+              .pipe(
+                Effect.flatMap(() =>
+                  HttpServerResponse.expireCookie(
+                    HttpServerResponse.jsonUnsafe({ success: true as const }),
+                    getDiscussionSessionCookie(),
+                    getDiscussionSessionCookieOptions(getRequestOrigin(request)),
+                  ).pipe(Effect.orDie),
                 ),
               ),
-              Effect.mapError(mapUnavailableError),
-            ),
           ),
         ),
       ),
     ),
 );
 
+/** The discussion API. It needs a `SqlClient`: the entry points provide `DatabaseLive`. */
 export const ApiLive = HttpApiBuilder.layer(DiscussionApi).pipe(
   Layer.provide(DiscussionRoutesLive),
+  Layer.provide(OAuthRoutesLive),
   Layer.provide(DiscussionServicesMiddlewareLive),
+  Layer.provide(FailureBoundaryLayer.make(FailureBoundary, toHttpError)),
 );

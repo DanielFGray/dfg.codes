@@ -271,4 +271,113 @@ layer(TestApi)("discussion API", (it) => {
       ]);
     }).pipe(Effect.scoped),
   );
+
+  it.effect("a comment without a session is refused as Unauthorized", () =>
+    Effect.gen(function* () {
+      const http = yield* newSession;
+      const reply = yield* send(http, "POST", "/api/comments", {
+        slug: `itest-anon-${randomHex(6)}`,
+        body: "no session",
+        parent_id: null,
+      });
+
+      expect(reply.status).toBe(401);
+      expect(reply.body).toEqual({
+        _tag: "Unauthorized",
+        message: "A signed-in session is required",
+      });
+    }),
+  );
+
+  it.effect("a request that fails its schema is refused as InvalidOperation", () =>
+    Effect.gen(function* () {
+      const http = yield* newSession;
+      const reply = yield* send(http, "POST", "/api/likes", { post: "x" });
+
+      expect(reply.status).toBe(400);
+      expect(reply.body).toEqual(
+        expect.objectContaining({ _tag: "InvalidOperation", reason: "invalid_input" }),
+      );
+    }),
+  );
+
+  it.effect("a reply to a missing comment is refused as ParentCommentNotFound", () =>
+    Effect.gen(function* () {
+      const http = yield* newSession;
+      const fixture = yield* createAuthenticatedFixture;
+      const reply = yield* send(
+        http,
+        "POST",
+        "/api/comments",
+        { slug: `itest-orphan-${randomHex(6)}`, body: "orphan", parent_id: 2_000_000_000 },
+        sessionHeaders(fixture.token),
+      );
+
+      expect(reply.status).toBe(404);
+      expect(reply.body).toEqual({
+        _tag: "ParentCommentNotFound",
+        message: "The parent comment does not exist",
+      });
+    }).pipe(Effect.scoped),
+  );
+
+  it.effect("deleting a missing comment is refused as CommentNotFound", () =>
+    Effect.gen(function* () {
+      const http = yield* newSession;
+      const fixture = yield* createAuthenticatedFixture;
+      const reply = yield* send(
+        http,
+        "DELETE",
+        "/api/comments/2000000000",
+        undefined,
+        sessionHeaders(fixture.token),
+      );
+
+      expect(reply.status).toBe(404);
+      expect(reply.body).toEqual({
+        _tag: "CommentNotFound",
+        message: "The comment does not exist",
+      });
+    }).pipe(Effect.scoped),
+  );
+
+  it.effect("a vote count outside 0 to 10 is refused as InvalidVoteCount", () =>
+    Effect.gen(function* () {
+      const http = yield* newSession;
+      const reply = yield* send(http, "POST", "/api/likes", {
+        post: `itest-votes-${randomHex(6)}`,
+        requested_votes: 11,
+      });
+
+      expect(reply.status).toBe(400);
+      expect(reply.body).toEqual({
+        _tag: "InvalidVoteCount",
+        message: "Votes must stay between 0 and 10",
+      });
+    }),
+  );
+
+  it.effect("a refused database call that no service maps answers fixed text", () =>
+    Effect.gen(function* () {
+      const http = yield* newSession;
+      const fixture = yield* createAuthenticatedFixture;
+      // An empty body breaks the comments table's length check (23514), which the
+      // answer table words without the database's own message.
+      const reply = yield* send(
+        http,
+        "POST",
+        "/api/comments",
+        { slug: `itest-check-${randomHex(6)}`, body: "", parent_id: null },
+        sessionHeaders(fixture.token),
+      );
+
+      expect(reply.status).toBe(400);
+      expect(reply.body).toEqual({
+        _tag: "InvalidOperation",
+        message: "Some values are not valid.",
+        reason: "invalid_input",
+        issues: [],
+      });
+    }).pipe(Effect.scoped),
+  );
 });

@@ -1,4 +1,23 @@
+import type { DatabaseError } from "@danielfgray/stompbox/db";
+import type { Forbidden, Unauthorized } from "@danielfgray/stompbox/http";
 import { Context, Effect, Option, Schema as S } from "effect";
+
+import type {
+  CommentAlreadyDeleted,
+  CommentNotFound,
+  InvalidRedirect,
+  InvalidVoteCount,
+  OAuthFailed,
+  ParentCommentNotFound,
+} from "./discussion-errors.js";
+
+export type CreateCommentError = DatabaseError | ParentCommentNotFound | Unauthorized;
+export type DeleteCommentError =
+  | CommentAlreadyDeleted
+  | CommentNotFound
+  | DatabaseError
+  | Forbidden
+  | Unauthorized;
 
 export const ArticleSlug = S.String;
 export type ArticleSlug = S.Schema.Type<typeof ArticleSlug>;
@@ -81,51 +100,19 @@ export class SendLikeInput extends S.Class<SendLikeInput>("SendLikeInput")({
   requested_votes: S.Number,
 }) {}
 
-export class AuthServiceError extends S.TaggedError<AuthServiceError>()("AuthServiceError", {
-  reason: S.Literals(["not-authenticated", "invalid-redirect", "oauth-failed"]),
-  message: S.String,
-}) {}
-
-export class RequestIdentityServiceError extends S.TaggedError<RequestIdentityServiceError>()(
-  "RequestIdentityServiceError",
-  {
-    reason: S.Literal("missing-request-identity"),
-    message: S.String,
-  },
-) {}
-
-export class CommentsServiceError extends S.TaggedError<CommentsServiceError>()(
-  "CommentsServiceError",
-  {
-    reason: S.Literals([
-      "comment-not-found",
-      "parent-comment-not-found",
-      "not-authorized",
-      "invalid-comment",
-    ]),
-    message: S.String,
-  },
-) {}
-
-export class LikesServiceError extends S.TaggedError<LikesServiceError>()(
-  "LikesServiceError",
-  {
-    reason: S.Literals(["invalid-vote-count", "missing-actor-id", "likes-unavailable"]),
-    message: S.String,
-  },
-) {}
-
 export interface AuthServiceShape {
-  getSession(): Effect.Effect<Option.Option<AuthSession>, AuthServiceError>;
-  requireSession(): Effect.Effect<AuthSession, AuthServiceError>;
-  createGitHubAuthorizationUrl(redirectTo: string): Effect.Effect<URL, AuthServiceError>;
-  signOut(): Effect.Effect<void, AuthServiceError>;
+  getSession(): Effect.Effect<Option.Option<AuthSession>>;
+  requireSession(): Effect.Effect<AuthSession, Unauthorized>;
+  createGitHubAuthorizationUrl(
+    redirectTo: string,
+  ): Effect.Effect<URL, InvalidRedirect | OAuthFailed>;
+  signOut(): Effect.Effect<void, DatabaseError>;
 }
 
 export class AuthService extends Context.Service<AuthService, AuthServiceShape>()("AuthService") {}
 
 export interface RequestIdentityServiceShape {
-  getActorId(): Effect.Effect<string, RequestIdentityServiceError>;
+  getActorId(): Effect.Effect<string, Unauthorized>;
 }
 
 export class RequestIdentityService extends Context.Service<
@@ -134,13 +121,11 @@ export class RequestIdentityService extends Context.Service<
 >()("RequestIdentityService") {}
 
 export interface CommentsServiceShape {
-  getThreadedComments(
-    slug: ArticleSlug,
-  ): Effect.Effect<ReadonlyArray<Comment>, CommentsServiceError>;
-  getCommentStats(): Effect.Effect<CommentStats, CommentsServiceError>;
-  getTopPosts(): Effect.Effect<ReadonlyArray<TopPosts>, CommentsServiceError>;
-  createComment(input: CreateCommentInput): Effect.Effect<Comment, CommentsServiceError>;
-  deleteComment(comment_id: number): Effect.Effect<void, CommentsServiceError>;
+  getThreadedComments(slug: ArticleSlug): Effect.Effect<ReadonlyArray<Comment>, DatabaseError>;
+  getCommentStats(): Effect.Effect<CommentStats, DatabaseError>;
+  getTopPosts(): Effect.Effect<ReadonlyArray<TopPosts>, DatabaseError>;
+  createComment(input: CreateCommentInput): Effect.Effect<Comment, CreateCommentError>;
+  deleteComment(comment_id: number): Effect.Effect<void, DeleteCommentError>;
 }
 
 export class CommentsService extends Context.Service<CommentsService, CommentsServiceShape>()(
@@ -148,8 +133,8 @@ export class CommentsService extends Context.Service<CommentsService, CommentsSe
 ) {}
 
 export interface PostLikesServiceShape {
-  getLikes(slug: ArticleSlug): Effect.Effect<Likes, LikesServiceError>;
-  sendLike(input: SendLikeInput): Effect.Effect<Likes, LikesServiceError>;
+  getLikes(slug: ArticleSlug): Effect.Effect<Likes, DatabaseError>;
+  sendLike(input: SendLikeInput): Effect.Effect<Likes, DatabaseError | InvalidVoteCount>;
 }
 
 export class PostLikesService extends Context.Service<PostLikesService, PostLikesServiceShape>()(

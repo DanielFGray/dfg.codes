@@ -21,8 +21,9 @@ server on Postgres in `server/`, migrations in `migrations/`.
 The backend follows ~/build/effect-web-template. Before you add or change a
 backend pattern (config, HTTP server, database access, errors, sessions, rate
 limits, Valkey, realtime, worker, tests), read how the template does it and do
-the same. Security code and auth SQL will come from `@danielfgray/stompbox`
-(~/build/stompbox); this app does not depend on it yet.
+the same. The app depends on `@danielfgray/stompbox` (v0.2.0, ~/build/stompbox) for
+queries (`/db`) and HTTP failure handling (`/http`, `/http/server`, `/http/client`): use
+those, not copies of the template's files.
 
 When the template has no pattern for what you need, stop and ask the user
 which way to go: prove the pattern in this app and then port it to the

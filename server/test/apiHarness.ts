@@ -5,7 +5,7 @@ import { NodeHttpServer } from "@effect/platform-node";
 import { Effect, Layer, Ref } from "effect";
 import { Cookies, FetchHttpClient, HttpClient, HttpRouter, HttpServer } from "effect/http";
 
-import { connectedDatabaseName } from "../db.js";
+import { connectedDatabaseName, DatabaseLive } from "../db.js";
 import { DiscussionApiLive } from "../routes.js";
 import { assertTestDatabaseName } from "./testDatabase.js";
 
@@ -37,7 +37,7 @@ const ConnectsToTestDatabase = Layer.effectDiscard(
   ),
 );
 
-export const TestApi = Layer.merge(Served, ConnectsToTestDatabase);
+export const TestApi = Layer.merge(Served, ConnectsToTestDatabase).pipe(Layer.provide(DatabaseLive));
 
 /**
  * A session with its own cookie jar: the `Set-Cookie` of a response is sent on this

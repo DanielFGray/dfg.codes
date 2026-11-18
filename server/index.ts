@@ -15,6 +15,7 @@ import {
   HttpServerResponse,
 } from "effect/http";
 import { ApiLive } from "./discussion/api.js";
+import { DatabaseLive } from "./db.js";
 import { CrossOriginHeadersLive, DiscussionNotFoundLive, getRequestPathname } from "./routes.js";
 
 type RuntimePaths = {
@@ -159,6 +160,6 @@ const runtimeLayer = Layer.mergeAll(
   ),
 );
 
-const serverLayer = HttpRouter.serve(app);
+const serverLayer = HttpRouter.serve(app).pipe(Layer.provide(DatabaseLive));
 
 NodeRuntime.runMain(Layer.launch(serverLayer).pipe(Effect.provide(runtimeLayer)));

@@ -3,8 +3,9 @@ import crypto from "node:crypto";
 import { Effect, Option, Schema } from "effect";
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/http";
 
-import { AuthSession, AuthServiceError, AuthUser } from "../../src/services/discussion.js";
-import { executeQuery, executeTakeFirst, withVisitorRole } from "../db.js";
+import { AuthSession, AuthUser } from "../../src/services/discussion.js";
+import { InvalidRedirect, OAuthFailed } from "../../src/services/discussion-errors.js";
+import { query, withVisitorRole } from "../db.js";
 import { GitHubTokenPayload, GitHubUserPayload } from "./github-oauth-payload.js";
 
 class GitHubOAuthState extends Schema.Class<GitHubOAuthState>("GitHubOAuthState")({
@@ -59,25 +60,21 @@ const normalizeRedirect = (value: string | null | undefined) => {
 
 const configuredRootUrl = () => process.env.VITE_ROOT_URL;
 
-const requireGitHubConfiguration = () => {
+const requireGitHubConfiguration = Effect.suspend(() => {
   const clientId = process.env.GITHUB_CLIENT_ID;
   const clientSecret = process.env.GITHUB_CLIENT_SECRET;
 
-  if (!clientId || !clientSecret) {
-    throw new AuthServiceError({
-      reason: "oauth-failed",
-      message: "GitHub OAuth is not configured",
-    });
-  }
+  return clientId && clientSecret
+    ? Effect.succeed({ clientId, clientSecret })
+    : Effect.fail(new OAuthFailed({ message: "GitHub OAuth is not configured" }));
+});
 
-  return { clientId, clientSecret };
-};
-
-const toOAuthError = (fallbackMessage: string) => (error: unknown) =>
-  new AuthServiceError({
-    reason: "oauth-failed",
-    message: error instanceof Error ? error.message : fallbackMessage,
-  });
+/**
+ * Answers `OAuthFailed` with `message`, which is fixed text. What went wrong is logged, not
+ * sent: a GitHub or driver message can name tokens and internals.
+ */
+const oauthFailed = (message: string) => (cause: unknown) =>
+  Effect.logWarning(message, cause).pipe(Effect.andThen(Effect.fail(new OAuthFailed({ message }))));
 
 const executeGitHubRequest = <E, R>(
   request: Effect.Effect<HttpClientRequest.HttpClientRequest, E, R>,
@@ -85,7 +82,7 @@ const executeGitHubRequest = <E, R>(
 ) =>
   request.pipe(
     Effect.flatMap(HttpClient.execute),
-    Effect.mapError(toOAuthError(failureMessage)),
+    Effect.catch(oauthFailed(failureMessage)),
     Effect.provide(FetchHttpClient.layer),
   );
 
@@ -95,13 +92,8 @@ const readGitHubPayload = <A>(
   failureMessage: string,
 ) =>
   response.json.pipe(
-    Effect.mapError(toOAuthError(failureMessage)),
-    Effect.flatMap((value) =>
-      Effect.try({
-        try: () => Schema.decodeUnknownSync(schema)(value),
-        catch: toOAuthError(failureMessage),
-      }),
-    ),
+    Effect.flatMap((value) => Schema.decodeUnknownEffect(schema)(value)),
+    Effect.catch(oauthFailed(failureMessage)),
   );
 
 const encodeOAuthState = (state: GitHubOAuthState) => base64UrlEncode(JSON.stringify(state));
@@ -163,26 +155,17 @@ const normalizeGitHubUsername = (login: string) => {
 const signInGitHubUser = Effect.fnUntraced(function* (githubUser: GitHubUser) {
   const cookieId = randomHex(24);
   const secret = randomHex(32);
-  const user = yield* callSessionUserFunction(
-    "auth.sign_in_github",
-    [
-      githubUser.id,
-      normalizeGitHubUsername(githubUser.login),
-      githubUser.avatar_url,
-      cookieId,
-      hashSecret(secret),
-      new Date(Date.now() + sessionTtlMs),
-    ],
-    "Signing in with GitHub failed",
-  );
+  const user = yield* callSessionUserFunction("auth.sign_in_github", [
+    githubUser.id,
+    normalizeGitHubUsername(githubUser.login),
+    githubUser.avatar_url,
+    cookieId,
+    hashSecret(secret),
+    new Date(Date.now() + sessionTtlMs),
+  ]);
 
   if (Option.isNone(user)) {
-    return yield* Effect.fail(
-      new AuthServiceError({
-        reason: "oauth-failed",
-        message: "GitHub authentication did not create a user",
-      }),
-    );
+    return yield* new OAuthFailed({ message: "GitHub authentication did not create a user" });
   }
 
   return { session: toAuthSession(user.value), token: `${cookieId}.${secret}` };
@@ -194,6 +177,8 @@ const SessionUser = Schema.Struct({
   username: Schema.String,
 });
 
+const SessionUserRow = Schema.Struct({ user: Schema.NullOr(SessionUser) });
+
 /**
  * Calls an auth function as the visitor role. The function returns the session's user as JSON,
  * or null when there is none. Only these functions may read or write the identity tables.
@@ -201,24 +186,22 @@ const SessionUser = Schema.Struct({
 const callSessionUserFunction = (
   name: "auth.sign_in_github" | "auth.find_session",
   args: ReadonlyArray<string | Date | null>,
-  failureMessage: string,
 ) =>
-  withVisitorRole((db) =>
-    executeTakeFirst(
-      db.selectNoFrom((eb) => eb.fn<unknown>(name, args.map((arg) => eb.val(arg))).as("user")),
-    ),
-  ).pipe(
-    Effect.flatMap((row) =>
-      Schema.decodeUnknownEffect(Schema.NullOr(SessionUser))(
-        Option.isSome(row) ? row.value.user : null,
+  withVisitorRole(
+    query.one(SessionUserRow, (db) =>
+      db.selectNoFrom((eb) =>
+        eb
+          .fn<typeof SessionUser.Encoded | null>(
+            name,
+            args.map((arg) => eb.val(arg)),
+          )
+          .as("user"),
       ),
     ),
-    Effect.map(Option.fromNullOr),
-    Effect.mapError(toOAuthError(failureMessage)),
-  );
+  ).pipe(Effect.map(({ user }) => Option.fromNullOr(user)));
 
 const exchangeGitHubCode = Effect.fnUntraced(function* (rootUrl: string, code: string) {
-  const { clientId, clientSecret } = requireGitHubConfiguration();
+  const { clientId, clientSecret } = yield* requireGitHubConfiguration;
   const response = yield* executeGitHubRequest(
     HttpClientRequest.post("https://github.com/login/oauth/access_token").pipe(
       HttpClientRequest.setHeaders({
@@ -242,17 +225,12 @@ const exchangeGitHubCode = Effect.fnUntraced(function* (rootUrl: string, code: s
   );
 
   if (response.status < 200 || response.status >= 300 || typeof payload.access_token !== "string") {
-    return yield* Effect.fail(
-      new AuthServiceError({
-        reason: "oauth-failed",
-        message:
-          typeof payload.error_description === "string"
-            ? payload.error_description
-            : typeof payload.error === "string"
-              ? payload.error
-            : "GitHub token exchange failed",
-      }),
+    yield* Effect.logWarning(
+      "GitHub token exchange refused",
+      payload.error,
+      payload.error_description,
     );
+    return yield* new OAuthFailed({ message: "GitHub token exchange failed" });
   }
 
   return payload.access_token;
@@ -272,7 +250,11 @@ const fetchGitHubUser = Effect.fnUntraced(function* (accessToken: string) {
     "GitHub user lookup failed",
   );
 
-  const payload = yield* readGitHubPayload(response, GitHubUserPayload, "GitHub user payload was invalid");
+  const payload = yield* readGitHubPayload(
+    response,
+    GitHubUserPayload,
+    "GitHub user payload was invalid",
+  );
 
   if (
     response.status < 200 ||
@@ -280,12 +262,8 @@ const fetchGitHubUser = Effect.fnUntraced(function* (accessToken: string) {
     typeof payload.id !== "number" ||
     typeof payload.login !== "string"
   ) {
-    return yield* Effect.fail(
-      new AuthServiceError({
-        reason: "oauth-failed",
-        message: typeof payload.message === "string" ? payload.message : "GitHub user lookup failed",
-      }),
-    );
+    yield* Effect.logWarning("GitHub user lookup refused", payload.message);
+    return yield* new OAuthFailed({ message: "GitHub user lookup failed" });
   }
 
   return {
@@ -322,16 +300,13 @@ export const createGitHubAuthorizationRequest = Effect.fnUntraced(function* (
   rootUrl: string,
   redirectTo: string | null | undefined,
 ) {
-  const { clientId } = requireGitHubConfiguration();
+  const { clientId } = yield* requireGitHubConfiguration;
   const redirect = normalizeRedirect(redirectTo);
 
   if (!redirect) {
-    return yield* Effect.fail(
-      new AuthServiceError({
-        reason: "invalid-redirect",
-        message: "The OAuth redirect target must stay on this site",
-      }),
-    );
+    return yield* new InvalidRedirect({
+      message: "The OAuth redirect target must stay on this site",
+    });
   }
 
   const state = randomHex(16);
@@ -353,12 +328,7 @@ export const createConfiguredGitHubAuthorizationUrl = Effect.fnUntraced(function
   const rootUrl = configuredRootUrl();
 
   if (!rootUrl) {
-    return yield* Effect.fail(
-      new AuthServiceError({
-        reason: "oauth-failed",
-        message: "VITE_ROOT_URL must be configured for GitHub OAuth",
-      }),
-    );
+    return yield* new OAuthFailed({ message: "GitHub OAuth is not configured" });
   }
 
   return yield* createGitHubAuthorizationRequest(rootUrl, redirectTo).pipe(
@@ -373,23 +343,13 @@ export const completeGitHubAuthorization = Effect.fnUntraced(function* (
   stateCookieValue: string | undefined,
 ) {
   if (!code || !state) {
-    return yield* Effect.fail(
-      new AuthServiceError({
-        reason: "oauth-failed",
-        message: "GitHub did not return a complete callback payload",
-      }),
-    );
+    return yield* new OAuthFailed({ message: "GitHub did not return a complete callback payload" });
   }
 
   const decodedState = decodeOAuthState(stateCookieValue);
 
   if (Option.isNone(decodedState) || decodedState.value.state !== state) {
-    return yield* Effect.fail(
-      new AuthServiceError({
-        reason: "oauth-failed",
-        message: "The GitHub OAuth state was missing or invalid",
-      }),
-    );
+    return yield* new OAuthFailed({ message: "The GitHub OAuth state was missing or invalid" });
   }
 
   const accessToken = yield* exchangeGitHubCode(rootUrl, code);
@@ -412,11 +372,10 @@ export const validateDiscussionSessionToken = Effect.fnUntraced(function* (
     return Option.none<ValidatedSession>();
   }
 
-  const user = yield* callSessionUserFunction(
-    "auth.find_session",
-    [parsed.cookieId, hashSecret(parsed.secret)],
-    "Loading the session failed",
-  );
+  const user = yield* callSessionUserFunction("auth.find_session", [
+    parsed.cookieId,
+    hashSecret(parsed.secret),
+  ]);
 
   return Option.map(
     user,
@@ -425,8 +384,8 @@ export const validateDiscussionSessionToken = Effect.fnUntraced(function* (
 });
 
 export const deleteDiscussionSession = (cookieId: string) =>
-  withVisitorRole((db) =>
-    executeQuery(
+  withVisitorRole(
+    query.exec((db) =>
       db.selectNoFrom((eb) => eb.fn<unknown>("auth.sign_out", [eb.val(cookieId)]).as("signed_out")),
     ),
-  ).pipe(Effect.asVoid, Effect.mapError(toOAuthError("Deleting the session failed")));
+  );

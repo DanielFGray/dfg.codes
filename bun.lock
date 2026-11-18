@@ -10,6 +10,7 @@
         "@codemirror/lang-javascript": "^6.2.4",
         "@codemirror/lang-json": "^6.0.2",
         "@coderline/alphatab": "1.9.0",
+        "@danielfgray/stompbox": "github:DanielFGray/effect-stompbox#v0.2.0",
         "@effect/platform-node": "^4.1.2",
         "@effect/sql-pg": "^4.1.2",
         "@headlessui/react": "^2.2.9",
@@ -32,7 +33,6 @@
         "kysely": "^0.29.2",
         "lodash": "^4.17.23",
         "npm-run-all": "^4.1.5",
-        "pg": "^8.21.0",
         "react": "^19.2.7",
         "react-aria-components": "^1.15.1",
         "react-dom": "^19.2.7",
@@ -61,6 +61,7 @@
         "kysely-codegen": "^0.20.0",
         "oxfmt": "^0.34.0",
         "oxlint": "^1.49.0",
+        "pg": "^8.21.0",
         "tailwindcss": "^4.3.5",
         "typescript": "~5.6.2",
         "vite": "^8.3.8",
@@ -158,6 +159,8 @@
     "@codemirror/view": ["@codemirror/view@6.43.15", "", { "dependencies": { "@codemirror/state": "^6.7.0", "crelt": "^1.0.6", "style-mod": "^4.1.0", "w3c-keyname": "^2.2.4" } }, "sha512-HHsfpqFeHyXLs983pSRe38Xajs0vFWZQ2BuX0m7Ki8w3jZ5iD8cuR3lBz2/5/X53Dhf32SBHKh6rtSTB6tKeGw=="],
 
     "@coderline/alphatab": ["@coderline/alphatab@1.9.0", "", { "peerDependencies": { "@coderline/alphatab-vite": "^1.9.0", "@coderline/alphatab-webpack": "^1.9.0" }, "optionalPeers": ["@coderline/alphatab-vite", "@coderline/alphatab-webpack"] }, "sha512-pG/Um03DdiTW7i9KR+rPTRRnzIW5oJBWs67altBXtCkxGvUG1RuvkgRTZO3GIaOD2vATjcw+5OevMZl9I2/T+Q=="],
+
+    "@danielfgray/stompbox": ["@danielfgray/stompbox@github:DanielFGray/effect-stompbox#fbbc09e", { "peerDependencies": { "@effect/platform-bun": "^4.1.0", "@effect/sql-pg": "^4.1.0", "effect": "^4.1.0", "graphile-worker": "^0.18.0", "html-to-text": "^10.0.1", "kysely": "^0.29.4", "lodash.template": "^4.18.1", "mjml": "^5.4.1", "nodemailer": "^10.5.0" }, "optionalPeers": ["@effect/platform-bun", "@effect/sql-pg", "graphile-worker", "html-to-text", "kysely", "lodash.template", "mjml", "nodemailer"] }, "DanielFGray-effect-stompbox-fbbc09e", "sha512-Icu8nIxv5pHRzWSJ8fgX9r6cKNs8GjZGYwRoRVJQW6e6VFsS6xiP4NMzCKifoUG8aVyUKYOUMQSzf6JxkSVtWA=="],
 
     "@effect/language-service": ["@effect/language-service@0.86.6", "", { "bin": { "effect-language-service": "cli.js" } }, "sha512-uwXbp+lWzt60bZnm6lG6S5DWy0m6TthUzV2hcQoiS6NzieEDm07tuBakscxOXoO+AU9+yTH+0TSIa9mEDt9dFA=="],
 

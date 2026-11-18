@@ -1,11 +1,12 @@
+import { boundaryErrors } from "@danielfgray/stompbox/http";
 import {
   HttpApi,
   HttpApiEndpoint,
   HttpApiGroup,
   HttpApiMiddleware,
   HttpApiSchema,
-} from 'effect/http-api'
-import { Schema } from 'effect'
+} from "effect/http-api";
+import { Schema } from "effect";
 
 import {
   ArticleSlug,
@@ -21,160 +22,104 @@ import {
   RequestIdentityService,
   SendLikeInput,
   TopPostsList,
-} from './discussion.js'
+} from "./discussion.js";
+import {
+  CommentAlreadyDeleted,
+  CommentNotFound,
+  InvalidRedirect,
+  InvalidVoteCount,
+  OAuthFailed,
+  ParentCommentNotFound,
+} from "./discussion-errors.js";
 
 export class DiscussionSessionResponse extends Schema.Class<DiscussionSessionResponse>(
-  'DiscussionSessionResponse',
+  "DiscussionSessionResponse",
 )({
   authAvailable: Schema.Boolean,
   session: Schema.NullOr(AuthSession),
 }) {}
 
-export class DiscussionSuccess extends Schema.Class<DiscussionSuccess>('DiscussionSuccess')({
+export class DiscussionSuccess extends Schema.Class<DiscussionSuccess>("DiscussionSuccess")({
   success: Schema.Literal(true),
 }) {}
 
-export class DiscussionBadRequestError extends Schema.TaggedError<DiscussionBadRequestError>()(
-  'DiscussionBadRequestError',
+/**
+ * The failure boundary's tag: every class a request can fail with, listed once. The server
+ * half is `FailureBoundaryLayer.make` in `server/discussion/api.ts`; its answer table can
+ * raise only classes this list holds.
+ */
+export class FailureBoundary extends HttpApiMiddleware.Service<FailureBoundary>()(
+  "dfg.codes/FailureBoundary",
   {
-    error: Schema.String,
+    error: [
+      ...boundaryErrors,
+      CommentAlreadyDeleted,
+      CommentNotFound,
+      InvalidRedirect,
+      InvalidVoteCount,
+      OAuthFailed,
+      ParentCommentNotFound,
+    ],
   },
-  { httpApiStatus: 400 },
 ) {}
-
-export class DiscussionUnauthorizedError extends Schema.TaggedError<
-  DiscussionUnauthorizedError
->()(
-  'DiscussionUnauthorizedError',
-  {
-    error: Schema.String,
-  },
-  { httpApiStatus: 401 },
-) {}
-
-export class DiscussionForbiddenError extends Schema.TaggedError<DiscussionForbiddenError>()(
-  'DiscussionForbiddenError',
-  {
-    error: Schema.String,
-  },
-  { httpApiStatus: 403 },
-) {}
-
-export class DiscussionNotFoundError extends Schema.TaggedError<DiscussionNotFoundError>()(
-  'DiscussionNotFoundError',
-  {
-    error: Schema.String,
-  },
-  { httpApiStatus: 404 },
-) {}
-
-export class DiscussionUnavailableError extends Schema.TaggedError<
-  DiscussionUnavailableError
->()('DiscussionUnavailableError', {
-  error: Schema.String,
-}, { httpApiStatus: 503 }) {}
 
 export class DiscussionServicesMiddleware extends HttpApiMiddleware.Service<
   DiscussionServicesMiddleware,
   {
-    provides: AuthService | CommentsService | PostLikesService | RequestIdentityService
+    provides: AuthService | CommentsService | PostLikesService | RequestIdentityService;
   }
->()('DiscussionServicesMiddleware', {
-  error: DiscussionUnavailableError,
+>()("DiscussionServicesMiddleware", {
+  error: boundaryErrors,
 }) {}
 
 const SlugUrlParams = Schema.Struct({
   slug: ArticleSlug,
-})
+});
 
 const GitHubAuthorizationUrlParams = Schema.Struct({
   redirect: Schema.optional(Schema.String),
-})
+});
 
 const DeleteCommentParams = Schema.Struct({
   commentId: Schema.NumberFromString,
-})
+});
 
-export const DiscussionGroup = HttpApiGroup.make('discussion', { topLevel: true })
+// FailureBoundary comes after DiscussionServicesMiddleware, so it also answers a failure
+// of the session lookup that middleware makes.
+export const DiscussionGroup = HttpApiGroup.make("discussion", { topLevel: true })
+  .add(HttpApiEndpoint.get("getSession", "/session", { success: DiscussionSessionResponse }))
+  .add(HttpApiEndpoint.get("getCommentStats", "/comment-stats", { success: CommentStats }))
   .add(
-    HttpApiEndpoint.get('getSession', '/session', {
-      success: DiscussionSessionResponse,
-      error: DiscussionUnavailableError,
-    }).middleware(DiscussionServicesMiddleware),
-  )
-  .add(
-    HttpApiEndpoint.get('githubAuth', '/auth/github', {
-      query: GitHubAuthorizationUrlParams,
+    HttpApiEndpoint.get("getThreadedComments", "/comments", {
+      query: SlugUrlParams,
+      success: CommentList,
     }),
   )
   .add(
-    HttpApiEndpoint.get('githubCallback', '/auth/github/callback'),
-  )
-  .add(
-    HttpApiEndpoint.get('getCommentStats', '/comment-stats', {
-      success: CommentStats,
-      error: [DiscussionBadRequestError, DiscussionUnavailableError],
-    }).middleware(DiscussionServicesMiddleware),
-  )
-  .add(
-    HttpApiEndpoint.get('getThreadedComments', '/comments', {
-      query: SlugUrlParams,
-      success: CommentList,
-      error: [DiscussionBadRequestError, DiscussionUnavailableError],
-    }).middleware(DiscussionServicesMiddleware),
-  )
-  .add(
-    HttpApiEndpoint.post('createComment', '/comments', {
+    HttpApiEndpoint.post("createComment", "/comments", {
       payload: CreateCommentInput,
       success: Comment.pipe(HttpApiSchema.status(201)),
-      error: [
-        DiscussionBadRequestError,
-        DiscussionUnauthorizedError,
-        DiscussionForbiddenError,
-        DiscussionNotFoundError,
-        DiscussionUnavailableError,
-      ],
-    }).middleware(DiscussionServicesMiddleware),
+    }),
   )
   .add(
-    HttpApiEndpoint.delete('deleteComment', '/comments/:commentId', {
+    HttpApiEndpoint.delete("deleteComment", "/comments/:commentId", {
       params: DeleteCommentParams,
       success: DiscussionSuccess,
-      error: [
-        DiscussionBadRequestError,
-        DiscussionUnauthorizedError,
-        DiscussionForbiddenError,
-        DiscussionNotFoundError,
-        DiscussionUnavailableError,
-      ],
-    }).middleware(DiscussionServicesMiddleware),
+    }),
   )
-  .add(
-    HttpApiEndpoint.get('getTopPosts', '/top-posts', {
-      success: TopPostsList,
-      error: [DiscussionBadRequestError, DiscussionUnavailableError],
-    }).middleware(DiscussionServicesMiddleware),
-  )
-  .add(
-    HttpApiEndpoint.get('getLikes', '/likes', {
-      query: SlugUrlParams,
-      success: Likes,
-      error: [DiscussionBadRequestError, DiscussionUnavailableError],
-    }).middleware(DiscussionServicesMiddleware),
-  )
-  .add(
-    HttpApiEndpoint.post('sendLike', '/likes', {
-      payload: SendLikeInput,
-      success: Likes,
-      error: [DiscussionBadRequestError, DiscussionUnavailableError],
-    }).middleware(DiscussionServicesMiddleware),
-  )
-  .add(
-    HttpApiEndpoint.post('signOut', '/auth/signout', {
-      success: DiscussionSuccess,
-      error: DiscussionUnavailableError,
-    }).middleware(DiscussionServicesMiddleware),
-  )
-  .prefix('/api')
+  .add(HttpApiEndpoint.get("getTopPosts", "/top-posts", { success: TopPostsList }))
+  .add(HttpApiEndpoint.get("getLikes", "/likes", { query: SlugUrlParams, success: Likes }))
+  .add(HttpApiEndpoint.post("sendLike", "/likes", { payload: SendLikeInput, success: Likes }))
+  .add(HttpApiEndpoint.post("signOut", "/auth/signout", { success: DiscussionSuccess }))
+  .middleware(DiscussionServicesMiddleware)
+  .middleware(FailureBoundary)
+  .prefix("/api");
 
-export const DiscussionApi = HttpApi.make('discussion').add(DiscussionGroup)
+/** The GitHub redirects need no session, so they skip the services middleware. */
+export const OAuthGroup = HttpApiGroup.make("oauth", { topLevel: true })
+  .add(HttpApiEndpoint.get("githubAuth", "/auth/github", { query: GitHubAuthorizationUrlParams }))
+  .add(HttpApiEndpoint.get("githubCallback", "/auth/github/callback"))
+  .middleware(FailureBoundary)
+  .prefix("/api");
+
+export const DiscussionApi = HttpApi.make("discussion").add(DiscussionGroup).add(OAuthGroup);
