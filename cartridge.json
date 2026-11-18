@@ -1,5 +1,5 @@
 {
-  "apiVersion": "server-ansible/v2",
+  "apiVersion": "roamancer/v2",
   "name": "dfg-codes",
   "postgres": [{ "database": "dfg_codes", "extensions": ["citext", "pgcrypto"] }],
   "services": [
