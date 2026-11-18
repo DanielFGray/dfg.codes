@@ -4,7 +4,7 @@ import {
   HttpApiGroup,
   HttpApiMiddleware,
   HttpApiSchema,
-} from 'effect/unstable/httpapi'
+} from 'effect/http-api'
 import { Schema } from 'effect'
 
 import {
@@ -34,7 +34,7 @@ export class DiscussionSuccess extends Schema.Class<DiscussionSuccess>('Discussi
   success: Schema.Literal(true),
 }) {}
 
-export class DiscussionBadRequestError extends Schema.TaggedErrorClass<DiscussionBadRequestError>()(
+export class DiscussionBadRequestError extends Schema.TaggedError<DiscussionBadRequestError>()(
   'DiscussionBadRequestError',
   {
     error: Schema.String,
@@ -42,7 +42,7 @@ export class DiscussionBadRequestError extends Schema.TaggedErrorClass<Discussio
   { httpApiStatus: 400 },
 ) {}
 
-export class DiscussionUnauthorizedError extends Schema.TaggedErrorClass<
+export class DiscussionUnauthorizedError extends Schema.TaggedError<
   DiscussionUnauthorizedError
 >()(
   'DiscussionUnauthorizedError',
@@ -52,7 +52,7 @@ export class DiscussionUnauthorizedError extends Schema.TaggedErrorClass<
   { httpApiStatus: 401 },
 ) {}
 
-export class DiscussionForbiddenError extends Schema.TaggedErrorClass<DiscussionForbiddenError>()(
+export class DiscussionForbiddenError extends Schema.TaggedError<DiscussionForbiddenError>()(
   'DiscussionForbiddenError',
   {
     error: Schema.String,
@@ -60,7 +60,7 @@ export class DiscussionForbiddenError extends Schema.TaggedErrorClass<Discussion
   { httpApiStatus: 403 },
 ) {}
 
-export class DiscussionNotFoundError extends Schema.TaggedErrorClass<DiscussionNotFoundError>()(
+export class DiscussionNotFoundError extends Schema.TaggedError<DiscussionNotFoundError>()(
   'DiscussionNotFoundError',
   {
     error: Schema.String,
@@ -68,7 +68,7 @@ export class DiscussionNotFoundError extends Schema.TaggedErrorClass<DiscussionN
   { httpApiStatus: 404 },
 ) {}
 
-export class DiscussionUnavailableError extends Schema.TaggedErrorClass<
+export class DiscussionUnavailableError extends Schema.TaggedError<
   DiscussionUnavailableError
 >()('DiscussionUnavailableError', {
   error: Schema.String,

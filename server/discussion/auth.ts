@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 
 import { Effect, Option, Schema } from "effect";
-import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/unstable/http";
+import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/http";
 
 import { AuthSession, AuthServiceError, AuthUser } from "../../src/services/discussion.js";
 import { executeQuery, executeTakeFirst, withVisitorRole } from "../db.js";

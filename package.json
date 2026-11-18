@@ -41,8 +41,8 @@
     "@codemirror/lang-javascript": "^6.2.4",
     "@codemirror/lang-json": "^6.0.2",
     "@coderline/alphatab": "1.9.0",
-    "@effect/platform-node": "4.0.0-beta.74",
-    "@effect/sql-pg": "4.0.0-beta.74",
+    "@effect/platform-node": "^4.1.2",
+    "@effect/sql-pg": "^4.1.2",
     "@headlessui/react": "^2.2.9",
     "@mdx-js/react": "^3.1.1",
     "@mdx-js/rollup": "^3.1.0",
@@ -56,7 +56,7 @@
     "codehike": "^1.0.7",
     "codemirror": "^6.0.2",
     "coi-serviceworker": "^0.1.7",
-    "effect": "4.0.0-beta.74",
+    "effect": "^4.1.2",
     "gigbag.js": "github:DanielFGray/alphatab-kit#v0.4.1",
     "graphile-migrate": "^1.4.1",
     "isbot": "^5",
@@ -78,7 +78,7 @@
   },
   "devDependencies": {
     "@effect/language-service": "^0.86.2",
-    "@effect/vitest": "4.0.0-beta.74",
+    "@effect/vitest": "^4.1.2",
     "@playwright/test": "^1.60.0",
     "@react-router/dev": "^7.18.5",
     "@tailwindcss/vite": "^4.3.5",
@@ -98,7 +98,7 @@
     "vitest": "4.1.12"
   },
   "overrides": {
-    "effect": "4.0.0-beta.74"
+    "effect": "^4.1.2"
   },
   "patchedDependencies": {
     "@coderline/alphatab@1.9.0": "patches/@coderline%2Falphatab@1.9.0.patch"

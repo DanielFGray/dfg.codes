@@ -3,7 +3,7 @@ import { createServer } from "node:http";
 
 import { NodeHttpServer } from "@effect/platform-node";
 import { Effect, Layer, Ref } from "effect";
-import { Cookies, FetchHttpClient, HttpClient, HttpRouter, HttpServer } from "effect/unstable/http";
+import { Cookies, FetchHttpClient, HttpClient, HttpRouter, HttpServer } from "effect/http";
 
 import { connectedDatabaseName } from "../db.js";
 import { DiscussionApiLive } from "../routes.js";
@@ -44,7 +44,7 @@ export const TestApi = Layer.merge(Served, ConnectsToTestDatabase);
  * session's later requests, and no other session sees it.
  */
 export const newSession = Effect.gen(function* () {
-  const jar = yield* Ref.make<Cookies.Cookies>(Cookies.empty);
+  const jar = yield* Ref.make<ReadonlyArray<Cookies.Cookie>>([]);
   const http = (yield* HttpClient.HttpClient).pipe(HttpClient.withCookiesRef(jar));
   return http;
 });

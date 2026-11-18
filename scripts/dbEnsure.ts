@@ -13,10 +13,10 @@ import {
   Redacted,
   Schedule,
 } from "effect";
-import { SqlClient } from "effect/unstable/sql";
-import { ChildProcess } from "effect/unstable/process";
+import { SqlClient } from "effect/sql";
+import { ChildProcess } from "effect/process";
 
-class ScriptError extends S.TaggedErrorClass<ScriptError>()("ScriptError", {
+class ScriptError extends S.TaggedError<ScriptError>()("ScriptError", {
   message: S.String,
 }) {}
 
@@ -45,13 +45,13 @@ export function dbTest(
   }).pipe(Effect.provide(databaseLayer(url)));
 
   const retryScheduleBase = Schedule.exponential(Duration.millis(minDelay), 1.8).pipe(
-    Schedule.modifyDelay((_, delay) =>
-      Effect.succeed(Duration.min(delay, Duration.millis(maxDelay))),
+    Schedule.modifyDelay(({ duration }) =>
+      Effect.succeed(Duration.min(duration, Duration.millis(maxDelay))),
     ),
   );
 
   const retrySchedule = Number.isFinite(maxTries)
-    ? retryScheduleBase.pipe(Schedule.take(maxTries))
+    ? retryScheduleBase.pipe(Schedule.upTo({ times: maxTries }))
     : retryScheduleBase;
 
   return performTest.pipe(
@@ -89,7 +89,7 @@ const runScript = Effect.fnUntraced(function* (name: string) {
 const readDatabaseUrl = Effect.gen(function* () {
   const fs = yield* FileSystem.FileSystem;
   const content = yield* fs.readFileString(".env");
-  return yield* Config.string("DATABASE_URL").parse(ConfigProvider.fromDotEnvContents(content));
+  return yield* Config.String("DATABASE_URL").parse(ConfigProvider.fromDotEnvContents(content));
 });
 
 // `ops dev db up` provisions the shared dev databases. This script never drops one to

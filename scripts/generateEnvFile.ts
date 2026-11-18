@@ -34,7 +34,7 @@ const main = Effect.gen(function* () {
   const hasExistingEnvFile = yield* fs.exists(dotenvPath);
   const existingContent = hasExistingEnvFile ? yield* fs.readFileString(dotenvPath) : "";
   const existing = yield* Config.all(
-    Object.fromEntries(fields.map(([key]) => [key, Config.option(Config.string(key))])),
+    Object.fromEntries(fields.map(([key]) => [key, Config.option(Config.String(key))])),
   ).parse(ConfigProvider.fromDotEnvContents(existingContent));
 
   const resolved = Object.fromEntries(

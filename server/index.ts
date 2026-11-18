@@ -13,7 +13,7 @@ import {
   HttpRouter,
   HttpServerRequest,
   HttpServerResponse,
-} from "effect/unstable/http";
+} from "effect/http";
 import { ApiLive } from "./discussion/api.js";
 import { CrossOriginHeadersLive, DiscussionNotFoundLive, getRequestPathname } from "./routes.js";
 
@@ -45,7 +45,7 @@ const ReactRouterRequestHandlerLive = Layer.effect(
   ReactRouterRequestHandler,
   Effect.fnUntraced(function* () {
     const { serverBuildUrl } = yield* RuntimePaths;
-    const mode = yield* Config.literals(["development", "production", "test"], "NODE_ENV").pipe(
+    const mode = yield* Config.Literals(["development", "production", "test"], "NODE_ENV").pipe(
       Config.withDefault("production"),
     );
     const build = yield* Effect.tryPromise({
@@ -153,8 +153,8 @@ const runtimeLayer = Layer.mergeAll(
   NodeHttpServer.layerConfig(
     createServer,
     Config.all({
-      host: Config.withDefault(Config.string("HOST"), "0.0.0.0"),
-      port: Config.withDefault(Config.port("PORT"), 3000),
+      host: Config.withDefault(Config.String("HOST"), "0.0.0.0"),
+      port: Config.withDefault(Config.Port("PORT"), 3000),
     }),
   ),
 );

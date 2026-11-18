@@ -2,7 +2,7 @@ import { expect, layer } from "@effect/vitest";
 import crypto from "node:crypto";
 import pg from "pg";
 import { Effect } from "effect";
-import { type HttpClient, HttpClientRequest } from "effect/unstable/http";
+import { type HttpClient, HttpClientRequest } from "effect/http";
 
 import { newSession, serverOrigin, TestApi } from "./apiHarness.js";
 

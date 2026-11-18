@@ -1,5 +1,5 @@
 import { Effect, Layer } from "effect";
-import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
+import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
 
 import { getCrossOriginHeaders } from "./cross-origin.js";
 import { ApiLive } from "./discussion/api.js";

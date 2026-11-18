@@ -1,7 +1,7 @@
 import { NodeHttpPlatform, NodeHttpServer, NodeRuntime } from "@effect/platform-node";
 import { createServer } from "node:http";
 import { Config, Effect, Layer, Logger } from "effect";
-import { HttpRouter } from "effect/unstable/http";
+import { HttpRouter } from "effect/http";
 
 import { DiscussionApiLive } from "./routes.js";
 
@@ -11,8 +11,8 @@ const runtimeLayer = Layer.mergeAll(
   NodeHttpServer.layerConfig(
     createServer,
     Config.all({
-      host: Config.withDefault(Config.string("DISCUSSION_API_HOST"), "127.0.0.1"),
-      port: Config.withDefault(Config.port("DISCUSSION_API_PORT"), 3001),
+      host: Config.withDefault(Config.String("DISCUSSION_API_HOST"), "127.0.0.1"),
+      port: Config.withDefault(Config.Port("DISCUSSION_API_PORT"), 3001),
     }),
   ),
 );

@@ -81,12 +81,12 @@ export class SendLikeInput extends S.Class<SendLikeInput>("SendLikeInput")({
   requested_votes: S.Number,
 }) {}
 
-export class AuthServiceError extends S.TaggedErrorClass<AuthServiceError>()("AuthServiceError", {
+export class AuthServiceError extends S.TaggedError<AuthServiceError>()("AuthServiceError", {
   reason: S.Literals(["not-authenticated", "invalid-redirect", "oauth-failed"]),
   message: S.String,
 }) {}
 
-export class RequestIdentityServiceError extends S.TaggedErrorClass<RequestIdentityServiceError>()(
+export class RequestIdentityServiceError extends S.TaggedError<RequestIdentityServiceError>()(
   "RequestIdentityServiceError",
   {
     reason: S.Literal("missing-request-identity"),
@@ -94,7 +94,7 @@ export class RequestIdentityServiceError extends S.TaggedErrorClass<RequestIdent
   },
 ) {}
 
-export class CommentsServiceError extends S.TaggedErrorClass<CommentsServiceError>()(
+export class CommentsServiceError extends S.TaggedError<CommentsServiceError>()(
   "CommentsServiceError",
   {
     reason: S.Literals([
@@ -107,7 +107,7 @@ export class CommentsServiceError extends S.TaggedErrorClass<CommentsServiceErro
   },
 ) {}
 
-export class LikesServiceError extends S.TaggedErrorClass<LikesServiceError>()(
+export class LikesServiceError extends S.TaggedError<LikesServiceError>()(
   "LikesServiceError",
   {
     reason: S.Literals(["invalid-vote-count", "missing-actor-id", "likes-unavailable"]),

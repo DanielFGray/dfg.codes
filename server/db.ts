@@ -23,7 +23,7 @@ const authDb = new Kysely<DB>({
 
 export type DiscussionTransaction = Transaction<DB>;
 
-export class SqlError extends Schema.TaggedErrorClass<SqlError>()("SqlError", {
+export class SqlError extends Schema.TaggedError<SqlError>()("SqlError", {
   cause: Schema.Unknown,
   message: Schema.String,
 }) {}
