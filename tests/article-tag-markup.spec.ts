@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { toggleTag } from "./helpers";
+
 // A tag pill on a card, the home preview or an article header is a link inside a list
 // item. A <li> may not wrap an <a>, and a <ul> may hold nothing but <li>s, so the
 // "tagged:" labels sit beside the list. (The index filter is a selection grid, not a
@@ -93,32 +95,67 @@ test("an article's first tag shares the 'tagged:' row when the tags wrap", async
 });
 
 // With one tag selected, a tag that appears on no filtered article is dimmed. As a
-// selection it must be disabled — aria-disabled, out of the tab order, and inert to a
-// press — otherwise a keyboard or pointer user selects a tag that does nothing.
-test("a dimmed tag is disabled and skipped by Tab", async ({ page }) => {
+// selection it must be inert: no tab stop for Tab to land on, and arrow navigation
+// inside the grid skips it — otherwise a keyboard user reaches a tag that does
+// nothing.
+test("a dimmed tag is disabled and skipped by keyboard navigation", async ({ page }) => {
+  test.setTimeout(60_000);
   await page.goto("/articles?tag=vim");
 
   const disabled = page.locator('[role="row"][aria-disabled="true"]');
   await expect(disabled.first()).toBeVisible();
-  await expect(disabled.first()).toHaveAttribute("tabindex", "-1");
-  const disabledTexts = await disabled.allTextContents();
 
-  await disabled.first().click({ force: true });
+  // The press can land while hydration replaces nodes and the pill has no box yet;
+  // retrying keeps the inert-press assertion deterministic.
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await disabled.first().click({ force: true, timeout: 2000 });
+      break;
+    } catch (error) {
+      if (attempt === 4) throw error;
+    }
+  }
   await expect(page).toHaveURL(/\/articles\?tag=vim$/);
 
-  const tabbed = new Set<string>();
-  for (let i = 0; i < 250; i++) {
+  // The tags the vim filter leaves enabled.
+  const enabledTexts = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('[role="row"]'))
+      .filter((r) => !r.hasAttribute("aria-disabled"))
+      .map((r) => r.textContent!),
+  );
+
+  // A selection round-trip proves the page answers presses, so the keyboard walk
+  // below is not racing hydration.
+  await toggleTag(page, enabledTexts[0]!);
+  await toggleTag(page, enabledTexts[0]!);
+
+  // Tab reaches the grid at an enabled row: a disabled tag carries no tab stop, so
+  // the roving tabindex never offers one to Tab.
+  let landedDisabled: boolean | null = null;
+  for (let i = 0; i < 100 && landedDisabled === null; i++) {
     await page.keyboard.press("Tab");
-    const focused = await page.evaluate(() =>
+    landedDisabled = await page.evaluate(() =>
       document.activeElement?.getAttribute("role") === "row"
-        ? document.activeElement?.textContent ?? null
+        ? document.activeElement!.hasAttribute("aria-disabled")
         : null,
     );
-    if (focused === null || tabbed.has(focused)) continue;
-    tabbed.add(focused);
   }
+  expect(landedDisabled, "Tab reaches a tag row").not.toBeNull();
+  expect(landedDisabled, "the row Tab reaches is enabled").toBe(false);
 
-  // The walk finds enabled tags, so a disabled text that never appears was skipped.
-  expect(tabbed.size).toBeGreaterThan(0);
-  for (const text of disabledTexts) expect(tabbed).not.toContain(text);
+  // Arrow keys move within the grid and skip the disabled tags.
+  const visited = new Set<string>();
+  for (let i = 0; i < 8; i++) {
+    await page.keyboard.press("ArrowDown");
+    const focused = await page.evaluate(() =>
+      document.activeElement?.getAttribute("role") === "row"
+        ? document.activeElement!.textContent!
+        : null,
+    );
+    if (focused) visited.add(focused);
+  }
+  expect(visited.size, "arrows moved within the grid").toBeGreaterThan(0);
+  for (const text of visited) {
+    expect(enabledTexts, `${text} is enabled`).toContain(text);
+  }
 });

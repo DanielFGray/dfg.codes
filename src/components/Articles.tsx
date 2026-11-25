@@ -38,7 +38,10 @@ export function TagFilter({
       onSelectionChange={onSelectionChange}
       disabledKeys={
         new Set(
-          selectedTags.length
+          // An empty intersection (the selected tags match no article) disables
+          // nothing, as the old dimming did: the selection that emptied the list
+          // must stay undoable, and a selected tag is never disabled.
+          selectedTags.length && intersectingTags.length
             ? allTags.filter((tag) => !intersectingTags.includes(tag))
             : [],
         )
@@ -81,10 +84,11 @@ export function TagLink({
   children: string;
   selectedTags?: string[];
 }) {
-  // The link targets the current filter with this tag toggled.
+  // The link targets the current filter with this tag toggled; the toggled tag
+  // goes first, matching the hrefs the links built before the filter selected.
   const next = selectedTags?.includes(tag)
     ? selectedTags.filter((t) => t !== tag)
-    : [...(selectedTags ?? []), tag];
+    : [tag, ...(selectedTags ?? [])];
   const params = new URLSearchParams();
   next.forEach((t) => params.append("tag", t));
   const search = params.toString() ? `?${params}` : "";
