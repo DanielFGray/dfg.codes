@@ -33,7 +33,9 @@ export default function ArticlesIndex({
     <SimpleLayout title="Writing on software development." intro={intro}>
       <div className="flex flex-wrap items-baseline gap-1 pb-8 text-xs">
         <span className="text-primary-500">filter by: </span>
-        <ul className="flex flex-wrap items-baseline gap-1">
+        {/* contents: the <li>s join the label's wrapping row instead of the <ul> sitting
+            in it as one flex item, which would push the whole list to its own row. */}
+        <ul className="contents">
           {allTags.map((t) => (
             <TagLink key={t} intersecting={intersectingTags} selectedTags={selectedTags}>
               {t}

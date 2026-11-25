@@ -30,7 +30,8 @@ export function ArticleLayout({ meta, children }: Props) {
             {meta.tags && meta.tags.length > 0 && (
               <div className="flex flex-wrap items-baseline gap-1 pr-8 text-xs">
                 <span className="text-base">tagged:</span>
-                <ul className="flex flex-wrap items-baseline gap-1">
+                {/* contents: the <li>s join the label's row; see routes/articles.tsx. */}
+                <ul className="contents">
                   {meta.tags.map(tag => (
                     <TagLink key={tag}>{tag}</TagLink>
                   ))}
