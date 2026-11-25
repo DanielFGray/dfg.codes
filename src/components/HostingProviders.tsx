@@ -1,15 +1,16 @@
 'use client'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
-  type SortingState,
-  createColumnHelper,
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  getFilteredRowModel,
-  useReactTable,
-} from '@tanstack/react-table'
+  Cell,
+  Column,
+  Row,
+  Table,
+  TableBody,
+  TableHeader,
+  type SortDescriptor,
+} from 'react-aria-components'
 import clsx from 'clsx'
+import { comparePlans, type ColumnKey, type HostProvider } from './hosting-providers-sort'
 
 function ChevronUpIcon({ className }: { className?: string }) {
   return (
@@ -27,14 +28,6 @@ function ChevronDownIcon({ className }: { className?: string }) {
   )
 }
 
-type HostProvider = {
-  name: string
-  url: `https://${string}`
-  price: `$${number}`
-  backend: 'none' | 'serverless' | 'any'
-  type: 'managed' | 'VPS'
-}
-
 const backendPlans: Array<HostProvider> = [
   { name: 'CloudFlare', url: 'https://cloudflare.com', price: '$0', backend: 'serverless', type: 'managed' },
   { name: 'DigitalOcean', url: 'https://digitalocean.com', price: '$5', backend: 'any', type: 'VPS' },
@@ -48,80 +41,53 @@ const backendPlans: Array<HostProvider> = [
   { name: 'Vultr', url: 'https://vultr.com', price: '$2.5', backend: 'any', type: 'VPS' },
 ]
 
-const backendColumnHelper = createColumnHelper<HostProvider>()
+const columns: ReadonlyArray<ColumnKey> = ['name', 'type', 'backend', 'price']
 
-const backendColumns = [
-  backendColumnHelper.accessor('name', {
-    header: 'platform',
-    cell: props => <a href={props.row.original.url}>{props.getValue()}</a>,
-  }),
-  backendColumnHelper.accessor('type', {}),
-  backendColumnHelper.accessor('backend', { header: 'supported backends' }),
-  backendColumnHelper.accessor('price', { header: 'cheapest plans' }),
-]
-
-export default function BackendHosting() {
-  return <SortableTable data={backendPlans} columns={backendColumns} />
+const columnLabels: Record<ColumnKey, string> = {
+  name: 'platform',
+  type: 'type',
+  backend: 'supported backends',
+  price: 'cheapest plans',
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function SortableTable({ data, columns }: { data: any[]; columns: any[] }) {
-  const [sorting, setSorting] = useState<SortingState>([])
-  const table = useReactTable({
-    data,
-    columns,
-    state: { sorting },
-    onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-  })
+export default function BackendHosting() {
+  const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({ column: 'name', direction: 'ascending' })
+  const column = columns.find(id => id === sortDescriptor.column) ?? 'name'
+  const sortedPlans = useMemo(
+    () => [...backendPlans].sort((a, b) => comparePlans(a, b, column, sortDescriptor.direction ?? 'ascending')),
+    [column, sortDescriptor.direction],
+  )
   return (
-    <table>
-      <thead>
-        {table.getHeaderGroups().map(headerGroup => (
-          <tr key={headerGroup.id}>
-            {headerGroup.headers.map(header => (
-              <th key={header.id} colSpan={header.colSpan}>
-                {header.isPlaceholder ? null : (
-                  <div className="group">
-                    <button
-                      className={clsx(
-                        header.column.getCanSort() && 'cursor-pointer select-none',
-                        'ring-1 ring-inset ring-transparent focus-within:ring-2 focus-within:ring-secondary-600',
-                      )}
-                      onClick={header.column.getToggleSortingHandler()}
-                    >
-                      {flexRender(header.column.columnDef.header, header.getContext())}
-                      {{
-                        asc: (
-                          <span className="ml-2 group-hover:text-secondary-200">
-                            <ChevronUpIcon className="h-5 w-5" aria-hidden="true" />
-                          </span>
-                        ),
-                        desc: (
-                          <span className="ml-2 group-hover:text-secondary-200">
-                            <ChevronDownIcon className="h-5 w-5" aria-hidden="true" />
-                          </span>
-                        ),
-                      }[header.column.getIsSorted() as string] ?? null}
-                    </button>
-                  </div>
+    <Table aria-label="Backend hosting providers" sortDescriptor={sortDescriptor} onSortChange={setSortDescriptor}>
+      <TableHeader>
+        {columns.map(id => (
+          <Column key={id} id={id} isRowHeader={id === 'name'} allowsSorting
+            className={({ isFocusVisible }) => clsx('cursor-pointer select-none', isFocusVisible && 'rounded outline-2 outline-offset-2 outline-secondary-600')}
+          >
+            {({ sortDirection }) => (
+              <span className="inline-flex items-center gap-2">
+                {columnLabels[id]}
+                {sortDirection && (
+                  <span aria-hidden="true">
+                    {sortDirection === 'ascending' ? <ChevronUpIcon className="h-5 w-5" /> : <ChevronDownIcon className="h-5 w-5" />}
+                  </span>
                 )}
-              </th>
-            ))}
-          </tr>
+              </span>
+            )}
+          </Column>
         ))}
-      </thead>
-      <tbody>
-        {table.getRowModel().rows.map(row => (
-          <tr key={row.id}>
-            {row.getVisibleCells().map(cell => (
-              <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
-            ))}
-          </tr>
-        ))}
-      </tbody>
-    </table>
+      </TableHeader>
+      <TableBody items={sortedPlans}>
+        {item => (
+          <Row id={item.name} columns={columns}>
+            {columnKey => (
+              <Cell>
+                {columnKey === 'name' ? <a href={item.url}>{item.name}</a> : item[columnKey as ColumnKey]}
+              </Cell>
+            )}
+          </Row>
+        )}
+      </TableBody>
+    </Table>
   )
 }
