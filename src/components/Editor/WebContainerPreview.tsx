@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { mergeProps, useFocusRing, useMove, useSeparator } from 'react-aria'
+import { Button } from 'react-aria-components'
 import type { NormalizedFiles } from './types'
 
 interface WebContainerPreviewProps {
@@ -107,12 +109,12 @@ export function WebContainerPreview({
   const terminalRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const rootRef = useRef<HTMLDivElement>(null)
-  const draggingRef = useRef(false)
   const runningRef = useRef(false)
   const filesRef = useRef(files)
   filesRef.current = files
   const idRef = useRef(++nextId)
   const myId = idRef.current
+  const terminalId = `wc-preview-terminal-${myId}`
 
   const sendFiles = useCallback(() => {
     const plain: Record<string, string> = {}
@@ -175,27 +177,62 @@ export function WebContainerPreview({
     }
   }, [lines])
 
+  const terminalHeightRef = useRef(terminalHeight)
+  terminalHeightRef.current = terminalHeight
+
+  // The handle between the preview and the terminal: pointer drags and arrow
+  // keys both go through useMove's onMove (keyboard moves arrive as deltas of
+  // ±1 per keypress, with key repeat producing a stream of them).
+  const { moveProps } = useMove({
+    onMoveStart() {
+      document.body.style.cursor = 'row-resize'
+      document.body.style.userSelect = 'none'
+    },
+    onMove(e) {
+      const containerRect = containerRef.current?.getBoundingClientRect()
+      if (!containerRect) return
+      // The handle sits on top of the terminal, so the separator follows the
+      // pointer: moving up (deltaY negative) grows the terminal, unlike the
+      // dfg.rocks sidebar whose resized pane sits before the handle.
+      const next = Math.max(
+        40,
+        Math.min(terminalHeightRef.current - e.deltaY, containerRect.height - 60),
+      )
+      terminalHeightRef.current = next
+      setTerminalHeight(next)
+    },
+    onMoveEnd() {
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    },
+  })
+  const { separatorProps } = useSeparator({ orientation: 'horizontal' })
+  const { focusProps, isFocusVisible } = useFocusRing()
+
+  // ARIA defaults an absent aria-valuemax to 100, which the terminal height
+  // can exceed, so the separator reports the same max the resize clamp uses.
+  // The max is layout-dependent; the observer keeps it true across drags and
+  // window resizes.
+  const [maxHeight, setMaxHeight] = useState(terminalHeight)
   useEffect(() => {
-    function onMouseMove(e: MouseEvent) {
-      if (!draggingRef.current || !containerRef.current) return
-      const containerRect = containerRef.current.getBoundingClientRect()
-      const newHeight = containerRect.bottom - e.clientY
-      setTerminalHeight(Math.max(40, Math.min(newHeight, containerRect.height - 60)))
+    const container = containerRef.current
+    if (!running || !container) return
+    const update = () => {
+      const max = container.getBoundingClientRect().height - 60
+      setMaxHeight(max)
+      // A window shrink can leave the terminal taller than the new max; the
+      // range must stay true without waiting for a drag to re-clamp it.
+      setTerminalHeight(prev => Math.max(40, Math.min(prev, max)))
     }
-    function onMouseUp() {
-      if (draggingRef.current) {
-        draggingRef.current = false
-        document.body.style.cursor = ''
-        document.body.style.userSelect = ''
-      }
-    }
-    window.addEventListener('mousemove', onMouseMove)
-    window.addEventListener('mouseup', onMouseUp)
-    return () => {
-      window.removeEventListener('mousemove', onMouseMove)
-      window.removeEventListener('mouseup', onMouseUp)
-    }
-  }, [])
+    update()
+    const observer = new ResizeObserver(update)
+    observer.observe(container)
+    return () => observer.disconnect()
+  }, [running])
+
+  function handleRun() {
+    handleRunRef.current()
+  }
 
   useEffect(() => {
     function onTakeover(e: Event) {
@@ -227,17 +264,6 @@ export function WebContainerPreview({
     observer.observe(el)
     return () => observer.disconnect()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  function handleRun() {
-    handleRunRef.current()
-  }
-
-  function startDrag(e: React.MouseEvent) {
-    e.preventDefault()
-    draggingRef.current = true
-    document.body.style.cursor = 'row-resize'
-    document.body.style.userSelect = 'none'
-  }
 
   return (
     <div
@@ -288,28 +314,45 @@ export function WebContainerPreview({
 
           {terminalOpen && (
             <div
-              onMouseDown={startDrag}
-              style={{ height: 5, cursor: 'row-resize', background: 'var(--editor-bg-subtle)', borderTop: '1px solid var(--editor-border)', flexShrink: 0 }}
+              {...mergeProps(moveProps, separatorProps, focusProps)}
+              tabIndex={0}
+              aria-label="Resize terminal"
+              aria-valuenow={terminalHeight}
+              aria-valuemin={40}
+              aria-valuemax={maxHeight}
+              style={{
+                height: 5, cursor: 'row-resize', background: 'var(--editor-bg-subtle)',
+                borderTop: '1px solid var(--editor-border)', flexShrink: 0, touchAction: 'none',
+                outline: isFocusVisible ? '1px solid var(--editor-accent)' : 'none',
+                outlineOffset: -1,
+              }}
             />
           )}
 
-          <div
-            onClick={() => setTerminalOpen(o => !o)}
-            style={{
-              display: 'flex', alignItems: 'center',
+          <Button
+            aria-expanded={terminalOpen}
+            aria-controls={terminalId}
+            onPress={() => setTerminalOpen(o => !o)}
+            style={({ isFocusVisible: focused }) => ({
+              display: 'flex', alignItems: 'center', width: '100%',
               background: 'var(--editor-bg-subtle)',
+              border: 'none',
               borderTop: terminalOpen ? 'none' : '1px solid var(--editor-border)',
               padding: '0 8px', height: 24, cursor: 'pointer', userSelect: 'none', flexShrink: 0,
-            }}
+              font: 'inherit', textAlign: 'left',
+              outline: focused ? '1px solid var(--editor-accent)' : 'none',
+              outlineOffset: -1,
+            })}
           >
             <span style={{ color: 'var(--editor-text-muted)', fontSize: 10, marginRight: 4 }}>
               {terminalOpen ? '\u25BC' : '\u25B6'}
             </span>
             <span style={{ color: 'var(--editor-text-muted)', fontSize: 11 }}>Terminal</span>
-          </div>
+          </Button>
 
           {terminalOpen && (
             <div
+              id={terminalId}
               ref={terminalRef}
               style={{
                 height: terminalHeight, overflow: 'auto',
