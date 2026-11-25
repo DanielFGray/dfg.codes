@@ -8,9 +8,9 @@ import {
   TableBody,
   TableHeader,
   type SortDescriptor,
-  type SortDirection,
 } from 'react-aria-components'
 import clsx from 'clsx'
+import { comparePlans, type ColumnKey, type HostProvider } from './hosting-providers-sort'
 
 function ChevronUpIcon({ className }: { className?: string }) {
   return (
@@ -28,16 +28,6 @@ function ChevronDownIcon({ className }: { className?: string }) {
   )
 }
 
-type HostProvider = {
-  name: string
-  url: `https://${string}`
-  price: `$${number}`
-  backend: 'none' | 'serverless' | 'any'
-  type: 'managed' | 'VPS'
-}
-
-export type { HostProvider }
-
 const backendPlans: Array<HostProvider> = [
   { name: 'CloudFlare', url: 'https://cloudflare.com', price: '$0', backend: 'serverless', type: 'managed' },
   { name: 'DigitalOcean', url: 'https://digitalocean.com', price: '$5', backend: 'any', type: 'VPS' },
@@ -51,8 +41,6 @@ const backendPlans: Array<HostProvider> = [
   { name: 'Vultr', url: 'https://vultr.com', price: '$2.5', backend: 'any', type: 'VPS' },
 ]
 
-export type ColumnKey = Exclude<keyof HostProvider, 'url'>
-
 const columns: ReadonlyArray<ColumnKey> = ['name', 'type', 'backend', 'price']
 
 const columnLabels: Record<ColumnKey, string> = {
@@ -60,15 +48,6 @@ const columnLabels: Record<ColumnKey, string> = {
   type: 'Type',
   backend: 'supported backends',
   price: 'cheapest plans',
-}
-
-// A price like '$2.5' sorts by its number, so $2.5 lands before $10.
-const priceNumber = (price: HostProvider['price']) => Number(price.slice(1))
-
-export function comparePlans(a: HostProvider, b: HostProvider, column: ColumnKey, direction: SortDirection): number {
-  const sign = direction === 'descending' ? -1 : 1
-  const order = column === 'price' ? priceNumber(a.price) - priceNumber(b.price) : a[column].localeCompare(b[column])
-  return sign * order
 }
 
 export default function BackendHosting() {

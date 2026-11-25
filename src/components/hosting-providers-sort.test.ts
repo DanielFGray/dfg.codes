@@ -1,9 +1,9 @@
 import { expect, test } from 'vitest'
-import { comparePlans, type HostProvider } from './HostingProviders'
+import { comparePlans, type HostProvider } from './hosting-providers-sort'
 
 // The article's published plans top out at $5, so the page's own sorting never
 // separates a price whose textual and numeric order differ ($2.5 vs $10). The
-// shipped comparator owns that contract.
+// comparator owns that contract.
 const vultr: HostProvider = { name: 'Vultr', url: 'https://vultr.com', price: '$2.5', backend: 'any', type: 'VPS' }
 const hobby: HostProvider = { name: 'Hobby', url: 'https://hobby.dev', price: '$10', backend: 'any', type: 'VPS' }
 
