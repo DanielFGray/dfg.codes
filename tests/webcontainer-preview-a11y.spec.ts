@@ -49,22 +49,36 @@ test("the terminal resize handle is a focusable separator the keyboard can move"
   const terminal = page.locator(`#${panelId}`);
   const terminalHeight = () => terminal.evaluate(el => el.getBoundingClientRect().height);
 
-  // The pointer path keeps working after the move to useMove.
+  // The handle sits on top of the terminal, so it must follow the pointer:
+  // dragging up moves the separator up and makes the terminal taller.
   const preDrag = await terminalHeight();
   const box = await handle.boundingBox();
   expect(box, "the resize handle has a bounding box").not.toBeNull();
   await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
   await page.mouse.down();
-  await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2 + 60, { steps: 5 });
+  await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2 - 60, { steps: 5 });
   await page.mouse.up();
+  await expect.poll(async () => (await handle.boundingBox())!.y).toBeLessThan(box!.y - 50);
   await expect.poll(terminalHeight).toBeGreaterThan(preDrag);
 
-  // Arrow keys resize the terminal too.
+  // Arrow keys move the separator: ArrowUp up (terminal taller), ArrowDown
+  // down (shorter).
   await handle.focus();
+  const draggedY = (await handle.boundingBox())!.y;
   const grown = await terminalHeight();
   for (let i = 0; i < 10; i++) await page.keyboard.press("ArrowUp");
-  await expect.poll(terminalHeight).toBeLessThan(grown);
-  const shrunk = await terminalHeight();
+  await expect.poll(async () => (await handle.boundingBox())!.y).toBeLessThan(draggedY);
+  await expect.poll(terminalHeight).toBeGreaterThan(grown);
+  const liftedY = (await handle.boundingBox())!.y;
   for (let i = 0; i < 10; i++) await page.keyboard.press("ArrowDown");
-  await expect.poll(terminalHeight).toBeGreaterThan(shrunk);
+  await expect.poll(async () => (await handle.boundingBox())!.y).toBeGreaterThan(liftedY);
+
+  // The separator's declared value range is true: aria-valuemax is present
+  // and not below the value it reports.
+  const [now, max] = await Promise.all([
+    handle.getAttribute("aria-valuenow"),
+    handle.getAttribute("aria-valuemax"),
+  ]);
+  expect(max, "the separator declares an upper bound").not.toBeNull();
+  expect(Number(max!)).toBeGreaterThanOrEqual(Number(now!));
 });

@@ -191,9 +191,12 @@ export function WebContainerPreview({
     onMove(e) {
       const containerRect = containerRef.current?.getBoundingClientRect()
       if (!containerRect) return
+      // The handle sits on top of the terminal, so the separator follows the
+      // pointer: moving up (deltaY negative) grows the terminal, unlike the
+      // dfg.rocks sidebar whose resized pane sits before the handle.
       const next = Math.max(
         40,
-        Math.min(terminalHeightRef.current + e.deltaY, containerRect.height - 60),
+        Math.min(terminalHeightRef.current - e.deltaY, containerRect.height - 60),
       )
       terminalHeightRef.current = next
       setTerminalHeight(next)
@@ -205,6 +208,27 @@ export function WebContainerPreview({
   })
   const { separatorProps } = useSeparator({ orientation: 'horizontal' })
   const { focusProps, isFocusVisible } = useFocusRing()
+
+  // ARIA defaults an absent aria-valuemax to 100, which the terminal height
+  // can exceed, so the separator reports the same max the resize clamp uses.
+  // The max is layout-dependent; the observer keeps it true across drags and
+  // window resizes.
+  const [maxHeight, setMaxHeight] = useState(terminalHeight)
+  useEffect(() => {
+    const container = containerRef.current
+    if (!running || !container) return
+    const update = () => {
+      const max = container.getBoundingClientRect().height - 60
+      setMaxHeight(max)
+      // A window shrink can leave the terminal taller than the new max; the
+      // range must stay true without waiting for a drag to re-clamp it.
+      setTerminalHeight(prev => Math.max(40, Math.min(prev, max)))
+    }
+    update()
+    const observer = new ResizeObserver(update)
+    observer.observe(container)
+    return () => observer.disconnect()
+  }, [running])
 
   function handleRun() {
     handleRunRef.current()
@@ -295,6 +319,7 @@ export function WebContainerPreview({
               aria-label="Resize terminal"
               aria-valuenow={terminalHeight}
               aria-valuemin={40}
+              aria-valuemax={maxHeight}
               style={{
                 height: 5, cursor: 'row-resize', background: 'var(--editor-bg-subtle)',
                 borderTop: '1px solid var(--editor-border)', flexShrink: 0, touchAction: 'none',
