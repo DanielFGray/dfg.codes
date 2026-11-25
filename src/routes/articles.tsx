@@ -31,14 +31,16 @@ export default function ArticlesIndex({
 
   return (
     <SimpleLayout title="Writing on software development." intro={intro}>
-      <ul className="flex flex-wrap items-baseline gap-1 pb-8 text-xs">
+      <div className="flex flex-wrap items-baseline gap-1 pb-8 text-xs">
         <span className="text-primary-500">filter by: </span>
-        {allTags.map((t) => (
-          <TagLink key={t} intersecting={intersectingTags} selectedTags={selectedTags}>
-            {t}
-          </TagLink>
-        ))}
-      </ul>
+        <ul className="flex flex-wrap items-baseline gap-1">
+          {allTags.map((t) => (
+            <TagLink key={t} intersecting={intersectingTags} selectedTags={selectedTags}>
+              {t}
+            </TagLink>
+          ))}
+        </ul>
+      </div>
       <div className="flex flex-col space-y-16">
         {filteredArticles.map((article) => (
           <ArticleCard key={article.slug} selectedTags={selectedTags} {...article} />

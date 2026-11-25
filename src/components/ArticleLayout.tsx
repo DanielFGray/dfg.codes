@@ -28,12 +28,14 @@ export function ArticleLayout({ meta, children }: Props) {
               <span className="ml-3">{formatDate(meta.date)}</span>
             </time>
             {meta.tags && meta.tags.length > 0 && (
-              <ul className="flex flex-wrap items-baseline gap-1 pr-8 text-xs">
+              <div className="flex flex-wrap items-baseline gap-1 pr-8 text-xs">
                 <span className="text-base">tagged:</span>
-                {meta.tags.map(tag => (
-                  <TagLink key={tag}>{tag}</TagLink>
-                ))}
-              </ul>
+                <ul className="flex flex-wrap items-baseline gap-1">
+                  {meta.tags.map(tag => (
+                    <TagLink key={tag}>{tag}</TagLink>
+                  ))}
+                </ul>
+              </div>
             )}
           </div>
         </header>
