@@ -1,7 +1,7 @@
 import { useSearchParams } from "react-router";
 import { SimpleLayout } from "#src/components/SimpleLayout.js";
 import { getArticles, tagList, type ArticleMeta } from "#src/lib/articles.js";
-import { TagLink, ArticleCard } from "#src/components/Articles.js";
+import { TagFilter, ArticleCard } from "#src/components/Articles.js";
 
 export async function loader() {
   const articles = await getArticles();
@@ -25,24 +25,19 @@ export default function ArticlesIndex({
     ? articles.filter((article) => selectedTags.every((tag) => article.tags?.includes(tag)))
     : articles;
 
+  // With a filter active, a tag that no filtered article carries cannot narrow the
+  // result, so the TagFilter disables it until another filter makes it intersect again.
   const intersectingTags = selectedTags.length
     ? [...new Set(filteredArticles.flatMap((a) => a.tags ?? []))]
     : [];
 
   return (
     <SimpleLayout title="Writing on software development." intro={intro}>
-      <div className="flex flex-wrap items-baseline gap-1 pb-8 text-xs">
-        <span className="text-primary-500">filter by: </span>
-        {/* contents: the <li>s join the label's wrapping row instead of the <ul> sitting
-            in it as one flex item, which would push the whole list to its own row. */}
-        <ul className="contents">
-          {allTags.map((t) => (
-            <TagLink key={t} intersecting={intersectingTags} selectedTags={selectedTags}>
-              {t}
-            </TagLink>
-          ))}
-        </ul>
-      </div>
+      <TagFilter
+        allTags={allTags}
+        selectedTags={selectedTags}
+        intersectingTags={intersectingTags}
+      />
       <div className="flex flex-col space-y-16">
         {filteredArticles.map((article) => (
           <ArticleCard key={article.slug} selectedTags={selectedTags} {...article} />
