@@ -36,6 +36,8 @@ type HostProvider = {
   type: 'managed' | 'VPS'
 }
 
+export type { HostProvider }
+
 const backendPlans: Array<HostProvider> = [
   { name: 'CloudFlare', url: 'https://cloudflare.com', price: '$0', backend: 'serverless', type: 'managed' },
   { name: 'DigitalOcean', url: 'https://digitalocean.com', price: '$5', backend: 'any', type: 'VPS' },
@@ -49,7 +51,7 @@ const backendPlans: Array<HostProvider> = [
   { name: 'Vultr', url: 'https://vultr.com', price: '$2.5', backend: 'any', type: 'VPS' },
 ]
 
-type ColumnKey = Exclude<keyof HostProvider, 'url'>
+export type ColumnKey = Exclude<keyof HostProvider, 'url'>
 
 const columns: ReadonlyArray<ColumnKey> = ['name', 'type', 'backend', 'price']
 
@@ -63,7 +65,7 @@ const columnLabels: Record<ColumnKey, string> = {
 // A price like '$2.5' sorts by its number, so $2.5 lands before $10.
 const priceNumber = (price: HostProvider['price']) => Number(price.slice(1))
 
-function comparePlans(a: HostProvider, b: HostProvider, column: ColumnKey, direction: SortDirection): number {
+export function comparePlans(a: HostProvider, b: HostProvider, column: ColumnKey, direction: SortDirection): number {
   const sign = direction === 'descending' ? -1 : 1
   const order = column === 'price' ? priceNumber(a.price) - priceNumber(b.price) : a[column].localeCompare(b[column])
   return sign * order

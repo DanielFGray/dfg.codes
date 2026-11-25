@@ -1,7 +1,8 @@
 import { defineConfig } from "vitest/config";
 
 // Every test file that reads the database. The `unit` project excludes them, so
-// `test:unit` runs with no database.
+// `test:unit` runs with no database. The `unit` project also picks up unit tests
+// colocated with the app code.
 const API_TESTS = [
   "server/test/database-privileges.test.ts",
   "server/test/discussion-api.test.ts",
@@ -14,7 +15,7 @@ export default defineConfig({
       {
         test: {
           name: "unit",
-          include: ["server/test/**/*.test.ts"],
+          include: ["server/test/**/*.test.ts", "src/**/*.test.{ts,tsx}"],
           exclude: [...API_TESTS, "**/node_modules/**"],
           environment: "node",
         },
