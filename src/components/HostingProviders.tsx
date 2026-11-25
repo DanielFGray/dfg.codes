@@ -45,7 +45,7 @@ const columns: ReadonlyArray<ColumnKey> = ['name', 'type', 'backend', 'price']
 
 const columnLabels: Record<ColumnKey, string> = {
   name: 'platform',
-  type: 'Type',
+  type: 'type',
   backend: 'supported backends',
   price: 'cheapest plans',
 }
