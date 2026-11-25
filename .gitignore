@@ -6,3 +6,6 @@ node_modules
 .claude
 .playwright-mcp/
 test-results/
+
+# react-router dev server type output
+.react-router/
