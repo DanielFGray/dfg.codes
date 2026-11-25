@@ -220,6 +220,7 @@ export function Comment({
           <div className="ml-auto flex flex-row gap-2 lg:opacity-0 lg:group-hover:opacity-100">
             {sessionUserId === user.user_id && (
               <button
+                aria-label="delete your comment"
                 onClick={ev => {
                   if (ev.shiftKey || confirm('Are you sure you want to delete your comment?')) {
                     deleteComment.mutate(commentId)
@@ -232,7 +233,7 @@ export function Comment({
                 />
               </button>
             )}
-            <button onClick={() => setReplyId(commentId)}>
+            <button aria-label={`reply to ${user.username}`} onClick={() => setReplyId(commentId)}>
               <ReplyIcon
                 className="h-4 w-4 text-primary-400 hover:text-primary-600 dark:hover:text-primary-300"
                 aria-hidden="true"
