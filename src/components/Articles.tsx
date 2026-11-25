@@ -30,30 +30,29 @@ export function TagLink({
   })();
 
   const selected = selectedTags?.includes(tag);
+  // A tag that no filtered article carries cannot narrow the result, so it is dimmed
+  // and taken out of the tab order until another filter makes it intersect again.
+  const dimmed = Boolean(
+    selectedTags?.length && intersecting?.length && !intersecting.includes(tag),
+  );
 
   return (
-    <Link
-      to={`/articles${search}`}
-      className={
-        clsx(
-          "transition-opacity duration-200",
-          selectedTags?.length && intersecting?.length && !intersecting.includes(tag)
-            ? "opacity-5 pointer-events-none"
-            : "opacity-100",
-        )
-      }
-    >
-      <li
+    <li>
+      <Link
+        to={`/articles${search}`}
+        tabIndex={dimmed ? -1 : undefined}
+        aria-disabled={dimmed || undefined}
         className={clsx(
-          "rounded-md px-1 pb-0.5 outline outline-1 outline-transparent",
+          "block rounded-md px-1 pb-0.5 outline outline-1 outline-transparent transition-opacity duration-200",
+          dimmed ? "opacity-5 pointer-events-none" : "opacity-100",
           selected
             ? "bg-secondary-600 text-secondary-50"
             : "bg-primary-100/50 text-primary-600 hover:outline-secondary-300 dark:bg-primary-800 dark:text-primary-400 dark:hover:outline-secondary-800",
         )}
       >
         {tag}
-      </li>
-    </Link>
+      </Link>
+    </li>
   );
 }
 

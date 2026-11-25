@@ -4,3 +4,9 @@
 set -euo pipefail
 
 bun install --frozen-lockfile
+
+# A fresh worktree also has no .env, and the API and e2e tests need its database URLs.
+# `ops dev db up` provisions the shared dev databases (never a reset) and writes them;
+# env:init then fills in the app's own settings and keeps the database keys.
+bun run db:up
+bun run env:init
