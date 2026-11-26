@@ -15,11 +15,10 @@ export class Project extends S.Class<Project>("Project")({
 
 export const ProjectList = S.Array(Project);
 
-/** GitHub could not answer the projects list. The client may retry later. */
+/** GitHub could not answer the projects list. The cache retries after 30 seconds. */
 export class GitHubError extends S.TaggedError<GitHubError, { readonly brand: unique symbol }>()(
   "GitHubError",
   { message: S.String },
-  { httpApiStatus: 503 },
 ) {}
 
 /** A GitHub repository as fetched, before it is merged with the registry. */

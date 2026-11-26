@@ -32,12 +32,10 @@ export default {
   // Pre-render the mostly-static pages at build time.
   async prerender() {
     const slugs = getArticleSlugs();
+    // The home stack's routes are not prerendered: their loader reads the project list
+    // from the running server, which does not exist at build time.
     return [
-      "/",
       "/articles",
-      "/about",
-      "/projects",
-      "/uses",
       ...slugs.map((slug) => `/articles/${slug}`),
     ];
   },

@@ -41,6 +41,26 @@
   --color-editor-faint: var(--editor-text-faint);
   --color-editor-accent: var(--editor-accent);
 
+  /* Home stack colours, by role. The values live in `:root` below, so a light theme
+     only has to redefine the variables. */
+  --color-stack-bg: var(--stack-bg);
+  --color-stack-text: var(--stack-text);
+  --color-stack-strong: var(--stack-strong);
+  --color-stack-muted: var(--stack-muted);
+  --color-stack-faint: var(--stack-faint);
+  --color-stack-numeral: var(--stack-numeral);
+  --color-stack-line: var(--stack-line);
+  --color-stack-accent: var(--stack-accent);
+  --color-stack-nav-bg: var(--stack-nav-bg);
+  --color-music-bg: var(--music-bg);
+  --color-music-text: var(--music-text);
+  --color-music-muted: var(--music-muted);
+  --color-music-accent: var(--music-accent);
+  --color-code-bg: var(--code-bg);
+  --color-code-text: var(--code-text);
+  --color-code-muted: var(--code-muted);
+  --color-code-accent: var(--code-accent);
+
   /* Font sizes */
   --text-xs: 0.8125rem;
   --text-xs--line-height: 1.5rem;
@@ -141,6 +161,25 @@
 /* Base styles */
 :root {
   color-scheme: light;
+
+  /* Home stack: dark only for now. The split screen halves are brand colours. */
+  --stack-bg: var(--color-zinc-950);
+  --stack-text: var(--color-zinc-300);
+  --stack-strong: var(--color-zinc-100);
+  --stack-muted: var(--color-zinc-400);
+  --stack-faint: var(--color-zinc-500);
+  --stack-numeral: var(--color-zinc-700);
+  --stack-line: var(--color-zinc-800);
+  --stack-accent: var(--color-sky-400);
+  --stack-nav-bg: rgb(9 9 11 / 0.85);
+  --music-bg: #0e0e0e;
+  --music-text: #f0f0f0;
+  --music-muted: #a0a0a0;
+  --music-accent: #e08a3c;
+  --code-bg: #fafafa;
+  --code-text: var(--color-zinc-900);
+  --code-muted: var(--color-zinc-500);
+  --code-accent: var(--color-sky-500);
 
   /* Editor chrome tokens */
   --editor-bg: #ffffff; /* white — lighter than zinc-50 body */
