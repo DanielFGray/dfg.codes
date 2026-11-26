@@ -54,7 +54,7 @@
     "codehike": "^1.0.7",
     "codemirror": "^6.0.2",
     "coi-serviceworker": "^0.1.7",
-    "effect": "^4.1.2",
+    "effect": "^4.1.4",
     "graphile-migrate": "^1.4.1",
     "isbot": "^5",
     "kysely": "^0.29.2",
