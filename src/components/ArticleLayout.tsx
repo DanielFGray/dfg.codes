@@ -2,7 +2,6 @@ import { Container } from '#src/components/Container.js'
 import { Prose } from '#src/components/Prose.js'
 import { formatDate } from '#src/lib/articles.js'
 import type { ArticleMeta } from '#src/lib/articles.js'
-import { QueryProvider } from '#src/lib/comments.js'
 import { CommentSection } from '#src/components/Comments.js'
 import { TagLink } from './Articles'
 
@@ -16,7 +15,7 @@ interface Props {
 
 export function ArticleLayout({ meta, children }: Props) {
   return (
-    <QueryProvider>
+    <>
       <Container className="mt-16 lg:mt-32">
         <header className="mx-auto flex flex-col px-4 lg:px-0">
           <h1 className="mt-6 text-5xl font-extrabold tracking-tight text-primary-800 dark:text-primary-100">
@@ -45,6 +44,6 @@ export function ArticleLayout({ meta, children }: Props) {
       <Container className="mt-16 lg:mt-32">
         <CommentSection />
       </Container>
-    </QueryProvider>
+    </>
   )
 }
