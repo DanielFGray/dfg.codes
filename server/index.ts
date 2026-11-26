@@ -16,6 +16,7 @@ import {
 } from "effect/http";
 import { ApiLive } from "./discussion/api.js";
 import { DatabaseLive } from "./db.js";
+import { ProjectsApiLive } from "./projects/api.js";
 import { CrossOriginHeadersLive, DiscussionNotFoundLive, getRequestPathname } from "./routes.js";
 
 type RuntimePaths = {
@@ -134,7 +135,7 @@ const ReactAppLive = HttpRouter.add(
   })(),
 );
 
-const app = Layer.mergeAll(ApiLive, DiscussionNotFoundLive, ReactAppLive).pipe(
+const app = Layer.mergeAll(ApiLive, ProjectsApiLive, DiscussionNotFoundLive, ReactAppLive).pipe(
   Layer.provide(CrossOriginHeadersLive),
 );
 

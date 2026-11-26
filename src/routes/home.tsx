@@ -4,7 +4,8 @@ import { Container } from "#src/components/Container.js";
 import { ArticleCard, TagLink } from "#src/components/Articles.js";
 import { SocialLinks } from "#src/components/SocialIcons.js";
 import { Button } from "#src/components/Button.js";
-import { projects, ProjectsGrid } from "./projects";
+import { ProjectsGrid } from "./projects";
+import { useProjects } from "#src/lib/projects.js";
 
 export async function loader() {
   const articles = await getArticles();
@@ -52,9 +53,10 @@ function Header() {
 }
 
 function ProjectsPreview() {
+  const { data } = useProjects();
   return (
     <Container className="py-12">
-      <ProjectsGrid projects={projects.slice(0, 3)} />
+      <ProjectsGrid projects={(data ?? []).slice(0, 3)} />
     </Container>
   );
 }
