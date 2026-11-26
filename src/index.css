@@ -162,16 +162,19 @@
 :root {
   color-scheme: light;
 
-  /* Home stack: dark only for now. The split screen halves are brand colours. */
-  --stack-bg: var(--color-zinc-950);
-  --stack-text: var(--color-zinc-300);
-  --stack-strong: var(--color-zinc-100);
-  --stack-muted: var(--color-zinc-400);
+  /* Home stack, light. A warm off-white page with zinc text; the dark values are under
+     `.dark`. With no class on <html> the page is light, which matches root.tsx: its inline
+     script adds `dark` before first paint when the stored or OS preference asks for it. */
+  --stack-bg: #faf9f6;
+  --stack-text: var(--color-zinc-700);
+  --stack-strong: var(--color-zinc-900);
+  --stack-muted: var(--color-zinc-600);
   --stack-faint: var(--color-zinc-500);
-  --stack-numeral: var(--color-zinc-700);
-  --stack-line: var(--color-zinc-800);
-  --stack-accent: var(--color-sky-400);
-  --stack-nav-bg: rgb(9 9 11 / 0.85);
+  --stack-numeral: var(--color-zinc-200);
+  --stack-line: var(--color-zinc-200);
+  --stack-accent: var(--color-sky-700);
+  --stack-nav-bg: rgb(250 249 246 / 0.85);
+  /* The split screen halves are the same in both themes. */
   --music-bg: #0e0e0e;
   --music-text: #f0f0f0;
   --music-muted: #a0a0a0;
@@ -214,6 +217,17 @@
 
 .dark {
   color-scheme: dark;
+
+  --stack-bg: var(--color-zinc-950);
+  --stack-text: var(--color-zinc-300);
+  --stack-strong: var(--color-zinc-100);
+  --stack-muted: var(--color-zinc-400);
+  /* zinc-500 is 4.1:1 on this background; this is 5.4:1. */
+  --stack-faint: #85858f;
+  --stack-numeral: var(--color-zinc-700);
+  --stack-line: var(--color-zinc-800);
+  --stack-accent: var(--color-sky-400);
+  --stack-nav-bg: rgb(9 9 11 / 0.85);
 
   --editor-bg: #282a36; /* dracula background */
   --editor-bg-subtle: #282a36;
