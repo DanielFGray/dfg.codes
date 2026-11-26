@@ -5,7 +5,7 @@ import clsx from 'clsx'
 
 import { Container } from '#src/components/Container.js'
 import { ChevronDownIcon, CloseIcon, MoonIcon, SunIcon } from './SocialIcons'
-import { navlinks } from '#src/navlinks.js'
+import { isCurrent, navlinks } from '#src/navlinks.js'
 
 const menuButtonClass =
   'group flex items-center rounded-full bg-white/90 px-4 py-2 text-sm font-medium text-primary-800 shadow-lg shadow-primary-800/5 ring-1 ring-primary-900/5 backdrop-blur dark:bg-primary-800/90 dark:text-primary-200 dark:ring-primary-700 dark:hover:ring-white/20'
@@ -86,8 +86,9 @@ function MobileNavigation(props: React.HTMLAttributes<HTMLElement>) {
   )
 }
 
-function NavItem({ href, children }: { href: string; children: React.ReactNode }) {
-  const isActive = useLocation().pathname === href
+function NavItem({ link }: { link: (typeof navlinks)[number] }) {
+  const { href } = link
+  const isActive = isCurrent(link, useLocation().pathname)
 
   return (
     <li>
@@ -100,7 +101,7 @@ function NavItem({ href, children }: { href: string; children: React.ReactNode }
             : 'hover:text-secondary-500 dark:hover:text-secondary-400',
         )}
       >
-        {children}
+        {link.label}
         {isActive && (
           <span
             className={clsx(
@@ -120,9 +121,7 @@ function DesktopNavigation(props: React.HTMLAttributes<HTMLElement>) {
     <nav {...props}>
       <ul className="flex rounded-full bg-white/90 px-3 text-sm font-medium text-primary-800 shadow-lg shadow-primary-800/5 ring-1 ring-primary-900/5 dark:bg-primary-800/90 dark:text-primary-200 dark:ring-primary-700">
         {navlinks.map(link => (
-          <NavItem key={link.href} href={link.href}>
-            {link.label}
-          </NavItem>
+          <NavItem key={link.href} link={link} />
         ))}
       </ul>
     </nav>
