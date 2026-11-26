@@ -4,7 +4,6 @@ import { Config, Effect, Layer, Logger } from "effect";
 import { HttpRouter } from "effect/http";
 
 import { DatabaseLive } from "./db.js";
-import { ProjectsApiLive } from "./projects/api.js";
 import { DiscussionApiLive } from "./routes.js";
 
 const runtimeLayer = Layer.mergeAll(
@@ -19,7 +18,7 @@ const runtimeLayer = Layer.mergeAll(
   ),
 );
 
-const serverLayer = HttpRouter.serve(Layer.mergeAll(DiscussionApiLive, ProjectsApiLive)).pipe(
+const serverLayer = HttpRouter.serve(DiscussionApiLive).pipe(
   Layer.provide(DatabaseLive),
 );
 

@@ -1,24 +1,25 @@
-import { Effect } from "effect";
-import { FetchHttpClient } from "effect/http";
-import { HttpApiClient } from "effect/http-api";
+import { Effect, ManagedRuntime } from "effect";
 
-import { ProjectsApi } from "#src/services/projects-api.js";
-import type { Project } from "#src/services/projects.js";
+import { mergeProjects } from "../../server/projects/merge.js";
+import { ProjectsCacheLive } from "../../server/projects/cache.js";
+import { ProjectsCache, type Project } from "#src/services/projects.js";
+
+// One runtime for the page server process, so the GitHub cache is created once and
+// shared by every request.
+const runtime = ManagedRuntime.make(ProjectsCacheLive);
 
 /**
- * The project list, read from the projects API (`/api/projects`) at `origin`. The API
- * holds the cached GitHub data, so a page render costs no GitHub request of its own.
- * Resolves to null when the API cannot answer: the page then says so instead of failing.
+ * The project list: the registry merged with the cached GitHub data. Resolves to null
+ * when GitHub could not answer, so the page can say so instead of failing.
  */
-export function fetchProjects(origin: string): Promise<readonly Project[] | null> {
-  return HttpApiClient.make(ProjectsApi, { baseUrl: origin }).pipe(
-    Effect.flatMap((client) => client.getProjects()),
+export function loadProjects(): Promise<readonly Project[] | null> {
+  return ProjectsCache.pipe(
+    Effect.flatMap((cache) => cache.get),
     // The router serialises loader data, which a schema class instance would not survive.
-    Effect.map((list) => list.map((project) => ({ ...project }))),
+    Effect.map((repos) => mergeProjects(repos).map((project) => ({ ...project }))),
     Effect.catch((error) =>
       Effect.logWarning("project list unavailable", error).pipe(Effect.as(null)),
     ),
-    Effect.provide(FetchHttpClient.layer),
-    Effect.runPromise,
+    runtime.runPromise,
   );
 }
