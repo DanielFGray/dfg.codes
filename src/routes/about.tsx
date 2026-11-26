@@ -1,5 +1,13 @@
 import { Container } from '#src/components/Container.js'
 import { SocialLinks, SocialLink } from '#src/components/SocialIcons.js'
+import { personMeta } from '#src/lib/person-meta.js'
+
+export const meta = () =>
+  personMeta({
+    title: 'About - Daniel F. Gray',
+    description: 'Software developer and music teacher based in Houston, Texas.',
+    path: '/about',
+  })
 
 function MailIcon(props: React.SVGProps<SVGSVGElement>) {
   return (

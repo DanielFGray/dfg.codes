@@ -5,6 +5,14 @@ import { ArticleCard, TagLink } from "#src/components/Articles.js";
 import { SocialLinks } from "#src/components/SocialIcons.js";
 import { Button } from "#src/components/Button.js";
 import { projects, ProjectsGrid } from "./projects";
+import { personMeta } from "#src/lib/person-meta.js";
+
+export const meta = () =>
+  personMeta({
+    title: "Daniel F. Gray",
+    description: "Software developer and music teacher based in Houston, Texas.",
+    path: "/",
+  });
 
 export async function loader() {
   const articles = await getArticles();
